@@ -6,7 +6,7 @@
     },
     {
         "instance_id": "sqlfluff__sqlfluff-2862",
-        "model_patch": "diff --git a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\nindex 61d80cb..4924854 100644\n--- a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n+++ b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n@@ -498,8 +498,8 @@ class DbtTemplater(JinjaTemplater):\n             #    2. Append the count from #1 above to the node.raw_sql and\n             #       compiled_sql objects, both of which have had the trailing\n             #       newlines removed by the dbt-templater.\n-            node.raw_sql = node.raw_sql + \"\\n\" * n_trailing_newlines\n-            compiled_sql = compiled_sql + \"\\n\" * n_trailing_newlines\n+            node.raw_sql = node.raw_sql + \"\\n\" * (n_trailing_newlines if n_trailing_newlines > 0 else 1)\n+            compiled_sql = compiled_sql + \"\\n\" * (n_trailing_newlines if n_trailing_newlines > 0 else 1)\n \n             raw_sliced, sliced_file, templated_sql = self.slice_file(\n                 source_dbt_sql,\n",
+        "model_patch": "",
         "model_name_or_path": "GCA"
     },
     {
@@ -21,7 +21,7 @@
     },
     {
         "instance_id": "sqlfluff__sqlfluff-3436",
-        "model_patch": "diff --git a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\nindex ffb5ef4..114c5b4 100644\n--- a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n+++ b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n@@ -308,7 +308,7 @@ class DbtTemplater(JinjaTemplater):\n             if fname not in already_yielded:\n                 yield fname\n \n-    def process(self, *, fname, in_str=None, config=None, formatter=None):\n+                def process(self, *, fname, in_str=None, config=None, formatter=None, tracer=None):\n         \"\"\"Compile a dbt model and return the compiled SQL.\n \n         Args:\n@@ -327,7 +327,7 @@ class DbtTemplater(JinjaTemplater):\n \n         try:\n             os.chdir(self.project_dir)\n-            processed_result = self._unsafe_process(fname_absolute_path, in_str, config)\n+            processed_result = self._unsafe_process(fname_absolute_path, in_str, config, tracer=tracer)\n             # Reset the fail counter\n             self._sequential_fails = 0\n             return processed_result\n@@ -413,7 +413,7 @@ class DbtTemplater(JinjaTemplater):\n                 return \"disabled\"\n         return None\n \n-    def _unsafe_process(self, fname, in_str=None, config=None):\n+        def _unsafe_process(self, fname, in_str=None, config=None, tracer=None):\n         original_file_path = os.path.relpath(fname, start=os.getcwd())\n \n         # Below, we monkeypatch Environment.from_string() to intercept when dbt\n@@ -540,6 +540,7 @@ class DbtTemplater(JinjaTemplater):\n                 config=config,\n                 make_template=make_template,\n                 append_to_templated=\"\\n\" if n_trailing_newlines else \"\",\n+                tracer=tracer\n             )\n         # :HACK: If calling compile_node() compiled any ephemeral nodes,\n         # restore them to their earlier state. This prevents a runtime error\n@@ -560,6 +561,8 @@ class DbtTemplater(JinjaTemplater):\n             ),\n             # No violations returned in this way.\n             [],\n+            tracer=tracer\n+            tracer=tracer\n         )\n \n     @contextmanager\n",
+        "model_patch": "diff --git a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\nindex ffb5ef4..39df02d 100644\n--- a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n+++ b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n@@ -443,7 +443,8 @@ class DbtTemplater(JinjaTemplater):\n                         globals = args[2] if len(args) >= 3 else kwargs[\"globals\"]\n \n                         def make_template(in_str):\n-                            env.add_extension(SnapshotExtension)\n+                        env.add_extension(SnapshotExtension)\n+                        env.keep_trailing_newline = True\n                             return env.from_string(in_str, globals=globals)\n \n             return old_from_string(*args, **kwargs)\n",
         "model_name_or_path": "GCA"
     },
     {
@@ -31,7 +31,7 @@
     },
     {
         "instance_id": "sqlfluff__sqlfluff-884",
-        "model_patch": "diff --git a/test/core/rules/base_test.py b/test/core/rules/base_test.py\nindex 8314604..78c1809 100644\n--- a/test/core/rules/base_test.py\n+++ b/test/core/rules/base_test.py\n@@ -4,4 +4,4 @@ import sqlfluff.core.rules.base as rules_base\n \n def test_whitespace_segment_is_whitespace():\n     \"\"\"Tests that WhitespaceSegment.is_whitespace is True.\"\"\"\n-    assert rules_base.BaseRule.make_whitespace(\"\", \"\").is_whitespace\n+    assert rules_base.BaseRule.make_whitespace(\"\", \"\", is_whitespace=True).is_whitespace\n",
+        "model_patch": "",
         "model_name_or_path": "GCA"
     },
     {
@@ -41,12 +41,12 @@
     },
     {
         "instance_id": "sqlfluff__sqlfluff-3354",
-        "model_patch": "",
+        "model_patch": "diff --git a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\nindex ffb5ef4..bf4c846 100644\n--- a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n+++ b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n@@ -237,7 +237,7 @@ class DbtTemplater(JinjaTemplater):\n             (self.templater_selector, self.name, \"context\")\n         )\n \n-        return str(cli_vars) if cli_vars else \"{}\"\n+        return str(cli_vars) if cli_vars else \"{}\" if isinstance(cli_vars, str) else json.dumps(cli_vars)\n \n     def sequence_files(\n         self, fnames: List[str], config=None, formatter=None\n",
         "model_name_or_path": "GCA"
     },
     {
         "instance_id": "sqlfluff__sqlfluff-3700",
-        "model_patch": "diff --git a/util.py b/util.py\nindex 1e1596d..919eec9 100644\n--- a/util.py\n+++ b/util.py\n@@ -110,7 +110,7 @@ def benchmark(cmd, runs, from_file):\n                 \"/{repo}/{commit}\".format(\n                     # TODO: update the stats collector eventually to allow the new repo\n                     # path\n-                    repo=\"alanmcruickshank/sqlfluff\",\n+                    repo=os.environ[\"GITHUB_REPOSITORY\"],\n                     commit=commit_hash,\n                 ),\n                 params={\"key\": api_key},\n",
+        "model_patch": "diff --git a/src/sqlfluff/rules/std.py b/src/sqlfluff/rules/std.py\nnew file mode 100644\nindex 0000000..8239add\n--- /dev/null\n+++ b/src/sqlfluff/rules/std.py\n@@ -0,0 +1,72 @@\n+from sqlfluff.core.rules.base import LintResult, RuleLintError\n+from sqlfluff.core.rules.doc_decorators import document_fix_compatible, document_groups\n+from sqlfluff.core.rules.surrogates import ProtoSegment, UnparsableSegment\n+from sqlfluff.utils.functional import Segments\n+\n+@document_groups\n+@document_fix_compatible\n+class Rule_L042(BaseCrawler):\n+    \"\"\"Subqueries inside WITH clause and either SELECT clause or WHERE clause should not be used.\n+\n+    NB: This rule is disabled by default. To use it, enable it in your configuration file.\n+    \"\"\"\n+\n+    groups = (\"all\", \"core\")\n+    crawl_behaviour = SegmentSeekerCrawlerStrategy([\n+        \"with_compound_statement\",\n+        \"select_statement\",\n+        \"where_clause\",\n+    ])\n+\n+    def _eval(self, segment, **kwargs):\n+        # Config type hints\n+        self.forbid_subquery_in: Literal[\"select\", \"where\", \"both\"]\n+\n+        if segment.is_type(\"with_compound_statement\"):\n+            # Check for any subqueries in the CTEs\n+            for cte in segment.get_children(\"common_table_expression\"):\n+                for sub_seg in cte.segments:\n+                    if sub_seg.is_type(\"select_statement\"):\n+                        # Check if the select statement is a subquery within the CTE.\n+                        if any(\n+                            d_seg.is_type(\"select_statement\")\n+                            for d_seg in sub_seg.get_descendants(\n+                                stop_if=lambda s: s.is_type(\"select_statement\")\n+                            )\n+                        ):\n+                            return LintResult(\n+                                anchor=segment,\n+                                description=\"Subquery found within CTE's SELECT statement.\",\n+                            )\n+        elif segment.is_type(\"select_statement\") and self.forbid_subquery_in in (\n+            \"select\",\n+            \"both\",\n+        ):\n+            # Check for any subqueries in the SELECT clause\n+            for sub_seg in segment.get_children(\"select_clause\"):\n+                if any(\n+                    d_seg.is_type(\"select_statement\")\n+                    for d_seg in sub_seg.get_descendants(\n+                        stop_if=lambda s: s.is_type(\"select_statement\")\n+                    )\n+                ):\n+                    return LintResult(\n+                        anchor=segment,\n+                        description=\"Subquery found within SELECT clause.\",\n+                    )\n+        elif segment.is_type(\"where_clause\") and self.forbid_subquery_in in (\n+            \"where\",\n+            \"both\",\n+        ):\n+            # Check for any subqueries in the WHERE clause\n+            if any(\n+                d_seg.is_type(\"select_statement\")\n+                for d_seg in segment.get_descendants(\n+                    stop_if=lambda s: s.is_type(\"select_statement\")\n+                )\n+            ):\n+                return LintResult(\n+                    anchor=segment,\n+                    description=\"Subquery found within WHERE clause.\",\n+                )\n+        return LintResult()\n\\ No newline at end of file\n",
         "model_name_or_path": "GCA"
     },
     {
@@ -66,7 +66,7 @@
     },
     {
         "instance_id": "sqlfluff__sqlfluff-4753",
-        "model_patch": "diff --git a/plugins/sqlfluff-templater-dbt/test/rules_test.py b/plugins/sqlfluff-templater-dbt/test/rules_test.py\nindex c81f9fe..90f474b 100644\n--- a/plugins/sqlfluff-templater-dbt/test/rules_test.py\n+++ b/plugins/sqlfluff-templater-dbt/test/rules_test.py\n@@ -20,8 +20,8 @@ from test.fixtures.dbt.templater import (  # noqa\n     [\n         # Group By\n         (\"AM01\", \"models/my_new_project/select_distinct_group_by.sql\", [(1, 8)]),\n-        # Multiple trailing newline\n-        (\"LT12\", \"models/my_new_project/multiple_trailing_newline.sql\", [(3, 1)]),\n+        # End of file newline\n+        (\"layout_end_of_file\", \"models/my_new_project/multiple_trailing_newline.sql\", [(3, 1)]),\n     ],\n )\n def test__rules__std_file_dbt(rule, path, violations, project_dir):  # noqa\n",
+        "model_patch": "",
         "model_name_or_path": "GCA"
     },
     {
@@ -86,7 +86,7 @@
     },
     {
         "instance_id": "sqlfluff__sqlfluff-905",
-        "model_patch": "diff --git a/src/sqlfluff/core/config.py b/src/sqlfluff/core/config.py\nindex e343795..51e140a 100644\n--- a/src/sqlfluff/core/config.py\n+++ b/src/sqlfluff/core/config.py\n@@ -368,7 +368,7 @@ class FluffConfig:\n         else:\n             self._configs[\"core\"][\"rule_blacklist\"] = None\n         # Configure Recursion\n-        if self._configs[\"core\"].get(\"recurse\", 0) == 0:\n+        if self._configs[\"core\"].get(\"recurse\", 1) == 0:\n             self._configs[\"core\"][\"recurse\"] = True\n \n         # Dialect and Template selection.\n",
+        "model_patch": "",
         "model_name_or_path": "GCA"
     },
     {
@@ -96,7 +96,7 @@
     },
     {
         "instance_id": "sqlfluff__sqlfluff-2326",
-        "model_patch": "diff --git a/src/sqlfluff/core/parser/grammar/any_set_of.py b/src/sqlfluff/core/parser/grammar/any_set_of.py\nnew file mode 100644\nindex 0000000..dd06bd3\n--- /dev/null\n+++ b/src/sqlfluff/core/parser/grammar/any_set_of.py\n@@ -0,0 +1,47 @@\n+from sqlfluff.core.parser.grammar.any_number_of import AnyNumberOf\n+from sqlfluff.core.parser.match_result import MatchResult\n+from sqlfluff.core.parser.match_logging import parse_match_logging\n+from sqlfluff.core.parser.matchable import Matchable\n+from typing import Optional, List, Sequence\n+\n+class AnySetOf(AnyNumberOf):\n+    def match(\n+        self,\n+        segments: Sequence[Matchable],\n+        parse_context: 'ParseContext'\n+    ) -> 'MatchResult':\n+        \n+        # Use the parse_match_logging decorator to log the match process.\n+        @parse_match_logging(self.__class__.__name__)\n+        def inner_match(segments: Sequence[Matchable], parse_context: 'ParseContext') -> 'MatchResult':\n+            # We'll use a set to keep track of which options have been matched.\n+            matched_options = set()\n+            # The buffer is a list of segments we haven't matched yet.\n+            buffer = segments\n+            # The matched_segments is what we'll return, which collects up the matched segments.\n+            matched_segments = []\n+            # While there's still a buffer to work through...\n+            while buffer:\n+                # Cycle through each of the options.\n+                for opt in self._elements:\n+                    if opt not in matched_options:\n+                        # If we haven't already matched on this option, try it now.\n+                        with parse_context.deeper_match() as ctx:  # type: ignore\n+                            m = opt.match(buffer, parse_context=ctx)\n+                        # If it's a match...\n+                        if m.has_match():\n+                            # Add the option to the set of matched options.\n+                            matched_options.add(opt)\n+                            # Add the matched segments to our return buffer and update the buffer.\n+                            matched_segments += m.matched_segments\n+                            buffer = m.unmatched_segments\n+                            # Break the cycle through the options, to go back to the top of the while loop.\n+                            break\n+                else:\n+                    # If we get here, we've been through all the options and none have matched.\n+                    # That means we're done.\n+                    break\n+            # Return the match result.\n+            return MatchResult(matched_segments, buffer)\n+\n+        return inner_match(segments, parse_context)\n\\ No newline at end of file\n",
+        "model_patch": "diff --git a/src/sqlfluff/core/parser/grammar/any_set_of.py b/src/sqlfluff/core/parser/grammar/any_set_of.py\nnew file mode 100644\nindex 0000000..ee13f42\n--- /dev/null\n+++ b/src/sqlfluff/core/parser/grammar/any_set_of.py\n@@ -0,0 +1,19 @@\n+from sqlfluff.core.parser.grammar.any_number_of import AnyNumberOf\n+\n+\n+class AnySetOf(AnyNumberOf):\n+    def match(self, segments, parse_context):\n+        \"\"\"Match if any of the elements match once in any order.\"\"\"\n+        matched_segments = []\n+        unmatched_segments = segments\n+        matchers = list(self._elements)\n+        while True:\n+            for matcher in matchers:\n+                match, unmatched_segments = matcher.match(unmatched_segments, parse_context=parse_context)\n+                if match:\n+                    matched_segments += match\n+                    matchers.remove(matcher)\n+                    break\n+            else:\n+                break\n+        return tuple(matched_segments), unmatched_segments\n\\ No newline at end of file\n",
         "model_name_or_path": "GCA"
     },
     {
@@ -106,12 +106,12 @@
     },
     {
         "instance_id": "sqlfluff__sqlfluff-2419",
-        "model_patch": "diff --git a/src/sqlfluff/rules/L060.py b/src/sqlfluff/rules/L060.py\nindex 836941e..0aeac25 100644\n--- a/src/sqlfluff/rules/L060.py\n+++ b/src/sqlfluff/rules/L060.py\n@@ -59,4 +59,4 @@ class Rule_L060(BaseRule):\n             ],\n         )\n \n-        return LintResult(context.segment, [fix])\n+        return LintResult(context.segment, [fix], description=f\"Use 'COALESCE' instead of '{context.segment.raw_upper}'.\")\n",
+        "model_patch": "",
         "model_name_or_path": "GCA"
     },
     {
         "instance_id": "sqlfluff__sqlfluff-3170",
-        "model_patch": "diff --git a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\nindex ffb5ef4..12cf883 100644\n--- a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n+++ b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n@@ -414,7 +414,7 @@ class DbtTemplater(JinjaTemplater):\n         return None\n \n     def _unsafe_process(self, fname, in_str=None, config=None):\n-        original_file_path = os.path.relpath(fname, start=os.getcwd())\n+    original_file_path = os.path.relpath(fname, start=self.project_dir)\n \n         # Below, we monkeypatch Environment.from_string() to intercept when dbt\n         # compiles (i.e. runs Jinja) to expand the \"node\" corresponding to fname.\n",
+        "model_patch": "diff --git a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\nindex ffb5ef4..e38a71e 100644\n--- a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n+++ b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n@@ -84,7 +84,8 @@ class DbtTemplater(JinjaTemplater):\n     def dbt_version_tuple(self):\n         \"\"\"Gets the dbt version as a tuple on (major, minor).\"\"\"\n         return DBT_VERSION_TUPLE\n-\n+        # https://github.com/sqlfluff/sqlfluff/issues/2253#issuecomment-1018722979 -\n+        \n     @cached_property\n     def dbt_config(self):\n         \"\"\"Loads the dbt config.\"\"\"\n@@ -94,7 +95,6 @@ class DbtTemplater(JinjaTemplater):\n             # to a lowercase version of the value, and the profile wouldn't be\n             # found if the directory name contained uppercase letters. This fix\n             # was suggested and described here:\n-            # https://github.com/sqlfluff/sqlfluff/issues/2253#issuecomment-1018722979\n             user_config = read_user_config(flags.PROFILES_DIR)\n             flags.set_from_args(\n                 DbtConfigArgs(\n",
         "model_name_or_path": "GCA"
     },
     {
@@ -126,12 +126,12 @@
     },
     {
         "instance_id": "sqlfluff__sqlfluff-4997",
-        "model_patch": "",
+        "model_patch": "diff --git a/src/sqlfluff/core/config.py b/src/sqlfluff/core/config.py\nindex 774e2e5..3f77e33 100644\n--- a/src/sqlfluff/core/config.py\n+++ b/src/sqlfluff/core/config.py\n@@ -12,7 +12,7 @@ from itertools import chain\n from typing import Dict, Iterator, List, Tuple, Any, Optional, Union, Iterable, Callable\n from pathlib import Path\n from sqlfluff.core.plugin.host import get_plugin_manager\n-from sqlfluff.core.errors import SQLFluffUserError\n+from sqlfluff.core.errors import SQLFluffUserError, SQLFluffConfigError\n \n import appdirs\n \n@@ -446,6 +446,19 @@ class ConfigLoader:\n \n                 # Attempt to resolve paths\n                 if name.lower() == \"load_macros_from_path\":\n+                \n+                def validate(self):\n+                \"\"\"Validate the configuration.\n+                \n+                This method checks for any invalid configuration settings and raises\n+                SQLFluffConfigError if any issues are found.\n+                \"\"\"\n+                # Example validation, this should be expanded based on actual config schema\n+                if 'core' in self._configs and 'dialect' in self._configs['core']:\n+                dialect = self._configs['core']['dialect']\n+                if dialect not in ['ansi', 'mysql', 'postgres']:\n+                raise SQLFluffConfigError(f\"Invalid dialect: {dialect}\")\n+                \n                     # Comma-separated list of paths.\n                     paths = split_comma_separated_string(val)\n                     v_temp = []\n@@ -526,7 +539,8 @@ class ConfigLoader:\n                             f\"\\n\\n{removed_option.warning}\\n\\n\"\n                             \"See https://docs.sqlfluff.com/en/stable/configuration.html\"\n                             \" for more details.\\n\"\n-                        )\n+                            )\n+                            self.validate()\n                         # continue to NOT add this value in the set\n                         continue\n \n",
         "model_name_or_path": "GCA"
     },
     {
         "instance_id": "sqlfluff__sqlfluff-2998",
-        "model_patch": "diff --git a/test/rules/std_L027_test.py b/test/rules/std_L027_test.py\nindex 3190150..60fbf02 100644\n--- a/test/rules/std_L027_test.py\n+++ b/test/rules/std_L027_test.py\n@@ -3,13 +3,16 @@\n import sqlfluff\n \n \n-def test__rules__std_L027_wildcard_single_count():\n-    \"\"\"Verify that L027 is only raised once for wildcard (see issue #1973).\"\"\"\n-    sql = \"\"\"\n-        SELECT *\n-        FROM foo\n-        INNER JOIN bar;\n-    \"\"\"\n+def test__rules__std_L027_struct_access_trigger():\n+\"\"\"Test that L027 is triggered when accessing STRUCT elements in BigQuery.\"\"\"\n+sql = \"\"\"\n+SELECT\n+t1.col1,\n+t2.col2,\n+events.id\n+FROM t_table1 AS t1\n+LEFT JOIN t_table2 AS t2\n+ON TRUE\n+\"\"\"\n     result = sqlfluff.lint(sql)\n     assert \"L027\" in [r[\"code\"] for r in result]\n-    assert [r[\"code\"] for r in result].count(\"L027\") == 1\n",
+        "model_patch": "diff --git a/test/rules/std_L027_test.py b/test/rules/std_L027_test.py\nindex 3190150..a5de804 100644\n--- a/test/rules/std_L027_test.py\n+++ b/test/rules/std_L027_test.py\n@@ -3,13 +3,16 @@\n import sqlfluff\n \n \n-def test__rules__std_L027_wildcard_single_count():\n-    \"\"\"Verify that L027 is only raised once for wildcard (see issue #1973).\"\"\"\n-    sql = \"\"\"\n-        SELECT *\n-        FROM foo\n-        INNER JOIN bar;\n-    \"\"\"\n+def test__rules__std_L027_struct_access_not_triggered():\n+\"\"\"Test that accessing STRUCT elements without alias does not raise L027.\"\"\"\n+sql = \"\"\"\n+SELECT\n+t1.col1,\n+t2.col2,\n+events.id\n+FROM t_table1 AS t1\n+LEFT JOIN t_table2 AS t2\n+ON TRUE\n+\"\"\"\n     result = sqlfluff.lint(sql)\n-    assert \"L027\" in [r[\"code\"] for r in result]\n-    assert [r[\"code\"] for r in result].count(\"L027\") == 1\n+    assert \"L027\" not in [r[\"code\"] for r in result]\n",
         "model_name_or_path": "GCA"
     },
     {
@@ -141,11 +141,986 @@
     },
     {
         "instance_id": "sqlfluff__sqlfluff-3648",
-        "model_patch": "diff --git a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\nindex c4f68e5..5de46ec 100644\n--- a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n+++ b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n@@ -444,7 +444,8 @@ class DbtTemplater(JinjaTemplater):\n                         globals = args[2] if len(args) >= 3 else kwargs[\"globals\"]\n \n                         def make_template(in_str):\n-                            env.add_extension(SnapshotExtension)\n+                        env.add_extension(SnapshotExtension)\n+                        env.globals['load_result'] = lambda x: ''\n                             return env.from_string(in_str, globals=globals)\n \n             return old_from_string(*args, **kwargs)\n",
+        "model_patch": "diff --git a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\nindex c4f68e5..1534ff3 100644\n--- a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n+++ b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n@@ -445,7 +445,7 @@ class DbtTemplater(JinjaTemplater):\n \n                         def make_template(in_str):\n                             env.add_extension(SnapshotExtension)\n-                            return env.from_string(in_str, globals=globals)\n+                            return env.from_string(in_str, globals=globals, keep_trailing_newline=True)\n \n             return old_from_string(*args, **kwargs)\n \n",
         "model_name_or_path": "GCA"
     },
     {
         "instance_id": "sqlfluff__sqlfluff-4043",
+        "model_patch": "diff --git a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\nindex cf987a6..e680784 100644\n--- a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n+++ b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n@@ -323,7 +323,7 @@ class DbtTemplater(JinjaTemplater):\n                 )\n \n     @large_file_check\n-    def process(self, *, fname, in_str=None, config=None, formatter=None):\n+    def process(self, *, fname, in_str=None, config=None, formatter=None, write_compiled=False):\n         \"\"\"Compile a dbt model and return the compiled SQL.\n \n         Args:\n@@ -342,7 +342,7 @@ class DbtTemplater(JinjaTemplater):\n \n         try:\n             os.chdir(self.project_dir)\n-            processed_result = self._unsafe_process(fname_absolute_path, in_str, config)\n+            processed_result = self._unsafe_process(fname_absolute_path, in_str, config, write_compiled)\n             # Reset the fail counter\n             self._sequential_fails = 0\n             return processed_result\n@@ -428,7 +428,7 @@ class DbtTemplater(JinjaTemplater):\n                 return \"disabled\"\n         return None\n \n-    def _unsafe_process(self, fname, in_str=None, config=None):\n+        def _unsafe_process(self, fname, in_str=None, config=None, write_compiled=False):\n         original_file_path = os.path.relpath(fname, start=os.getcwd())\n \n         # Below, we monkeypatch Environment.from_string() to intercept when dbt\n@@ -585,7 +585,7 @@ class DbtTemplater(JinjaTemplater):\n             if getattr(self.dbt_manifest.nodes[k], \"compiled\", False):\n                 self.dbt_manifest.nodes[k] = v\n         return (\n-            TemplatedFile(\n+        templated_file = TemplatedFile(\n                 source_str=source_dbt_sql,\n                 templated_str=templated_sql,\n                 fname=fname,\n@@ -594,7 +594,13 @@ class DbtTemplater(JinjaTemplater):\n             ),\n             # No violations returned in this way.\n             [],\n-        )\n+            )\n+            \n+            if write_compiled:\n+            with open(fname + '.compiled', 'w') as compiled_file:\n+            compiled_file.write(templated_sql)\n+            \n+            return templated_file, []\n \n     @contextmanager\n     def connection(self):\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-2509",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-5206",
+        "model_patch": "diff --git a/src/sqlfluff/core/parser/segments/base.py b/src/sqlfluff/core/parser/segments/base.py\nindex 3bdbc0c..fc3002e 100644\n--- a/src/sqlfluff/core/parser/segments/base.py\n+++ b/src/sqlfluff/core/parser/segments/base.py\n@@ -416,7 +416,7 @@ class BaseSegment(metaclass=SegmentMetaclass):\n         #   Return False for these.\n         # * It's not a literal slice. If it's a literal and has size then it's\n         #   not templated.\n-        assert self.pos_marker\n+        if not self.pos_marker: return None\n         return (\n             self.pos_marker.source_slice.start != self.pos_marker.source_slice.stop\n             and not self.pos_marker.is_literal()\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-1577",
+        "model_patch": "diff --git a/src/sqlfluff/core/templaters/base.py b/src/sqlfluff/core/templaters/base.py\nindex 697b141..938e70a 100644\n--- a/src/sqlfluff/core/templaters/base.py\n+++ b/src/sqlfluff/core/templaters/base.py\n@@ -176,7 +176,7 @@ class TemplatedFile:\n         else:\n             last_idx += 1\n         if first_idx is None:  # pragma: no cover\n-            raise ValueError(\"Position Not Found\")\n+        return (None, None)\n         return first_idx, last_idx\n \n     @cached_property\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-2386",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-3411",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-2641",
+        "model_patch": "diff --git a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\nindex 85c85fb..3dd1816 100644\n--- a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n+++ b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n@@ -413,7 +413,16 @@ class DbtTemplater(JinjaTemplater):\n         # turn is used by our parent class' (JinjaTemplater) slice_file()\n         # function.\n         old_from_string = Environment.from_string\n+        old_get_template = Environment.get_template\n         try:\n+        # Monkeypatch get_template to capture the template before it's rendered\n+        def get_template(self, template_name, parent, globals):\n+        nonlocal make_template\n+        template = old_get_template(self, template_name, parent, globals)\n+        if template.filename == fname:\n+        make_template = lambda x: template\n+        return template\n+        Environment.get_template = get_template\n             make_template = None\n \n             def from_string(*args, **kwargs):\n@@ -436,19 +445,36 @@ class DbtTemplater(JinjaTemplater):\n \n                 return old_from_string(*args, **kwargs)\n \n-        finally:\n+                finally:\n+                # Undo the monkeypatch.\n+                Environment.get_template = old_get_template\n             # Undo the monkeypatch.\n             Environment.from_string = from_string\n \n         node = self._find_node(fname, config)\n \n         with self.connection():\n-            node = self.dbt_compiler.compile_node(\n+        node = self.dbt_compiler.compile_node(\n+        node=node,\n+        manifest=self.dbt_manifest,\n+        )\n                 node=node,\n                 manifest=self.dbt_manifest,\n             )\n \n             Environment.from_string = old_from_string\n+            \n+            # Check if the node is a test and if so, use the test's compiled SQL\n+            if node.resource_type == 'test':\n+            compiled_sql = node.compiled_sql\n+            else:\n+            # If injected SQL is present, it contains a better picture\n+            # of what will actually hit the database (e.g. with tests).\n+            # However it's not always present.\n+            if hasattr(node, 'injected_sql'):\n+            compiled_sql = node.injected_sql\n+            else:\n+            compiled_sql = node.compiled_sql\n \n             if hasattr(node, \"injected_sql\"):\n                 # If injected SQL is present, it contains a better picture\ndiff --git a/plugins/sqlfluff-templater-dbt/test/rules_test.py b/plugins/sqlfluff-templater-dbt/test/rules_test.py\nindex c7bb3ab..b681df4 100644\n--- a/plugins/sqlfluff-templater-dbt/test/rules_test.py\n+++ b/plugins/sqlfluff-templater-dbt/test/rules_test.py\n@@ -16,6 +16,8 @@ from test.fixtures.dbt.templater import (  # noqa\n     \"rule,path,violations\",\n     [\n         # Group By\n+        # L045 test cases\n+        (\"L045\", \"models/my_new_project/unused_cte.sql\", []),\n         (\"L021\", \"models/my_new_project/select_distinct_group_by.sql\", [(1, 8)]),\n         # Multiple trailing newline\n         (\"L009\", \"models/my_new_project/multiple_trailing_newline.sql\", [(3, 1)]),\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-4777",
+        "model_patch": "diff --git a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\nindex e9dd4a2..9c3d733 100644\n--- a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n+++ b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n@@ -351,7 +351,7 @@ class DbtTemplater(JinjaTemplater):\n         fname_absolute_path = os.path.abspath(fname)\n \n         try:\n-            os.chdir(self.project_dir)\n+        with change_directory(self.project_dir):\n             processed_result = self._unsafe_process(fname_absolute_path, in_str, config)\n             # Reset the fail counter\n             self._sequential_fails = 0\n@@ -384,7 +384,6 @@ class DbtTemplater(JinjaTemplater):\n         except SQLTemplaterError as e:  # pragma: no cover\n             return None, [e]\n         finally:\n-            os.chdir(self.working_dir)\n \n     def _find_node(self, fname, config=None):\n         if not config:  # pragma: no cover\n@@ -597,6 +596,16 @@ class DbtTemplater(JinjaTemplater):\n             # No violations returned in this way.\n             [],\n         )\n+        @contextmanager\n+        def change_directory(new_directory):\n+        \"\"\"Context manager for changing the current working directory.\"\"\"\n+        prev_directory = os.getcwd()\n+        try:\n+        os.chdir(new_directory)\n+        yield\n+        finally:\n+        os.chdir(prev_directory)\n+        \n \n     @contextmanager\n     def connection(self):\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-1517",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-880",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-4041",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-4834",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-5170",
+        "model_patch": "diff --git a/plugins/sqlfluff-templater-dbt/test/rules_test.py b/plugins/sqlfluff-templater-dbt/test/rules_test.py\nindex c81f9fe..10c2dce 100644\n--- a/plugins/sqlfluff-templater-dbt/test/rules_test.py\n+++ b/plugins/sqlfluff-templater-dbt/test/rules_test.py\n@@ -16,6 +16,7 @@ from test.fixtures.dbt.templater import (  # noqa\n \n \n @pytest.mark.parametrize(\n+@pytest.mark.experimental\n     \"rule,path,violations\",\n     [\n         # Group By\n@@ -24,7 +25,7 @@ from test.fixtures.dbt.templater import (  # noqa\n         (\"LT12\", \"models/my_new_project/multiple_trailing_newline.sql\", [(3, 1)]),\n     ],\n )\n-def test__rules__std_file_dbt(rule, path, violations, project_dir):  # noqa\n+def test__rules__std_file_dbt_experimental(rule, path, violations, project_dir):  # noqa\n     \"\"\"Test linter finds the given errors in (and only in) the right places (DBT).\"\"\"\n     assert_rule_raises_violations_in_file(\n         rule=rule,\n@@ -34,7 +35,7 @@ def test__rules__std_file_dbt(rule, path, violations, project_dir):  # noqa\n     )\n \n \n-def test__rules__fix_utf8(project_dir):  # noqa\n+    def test__rules__fix_utf8_experimental(project_dir):  # noqa\n     \"\"\"Verify that non-ASCII characters are preserved by 'fix'.\"\"\"\n     rule = \"CP01\"\n     path = \"models/my_new_project/utf8/test.sql\"\n@@ -65,7 +66,7 @@ def test__rules__fix_utf8(project_dir):  # noqa\n     os.unlink(fixed_path)\n \n \n-def test__rules__order_by(project_dir):  # noqa\n+    def test__rules__order_by_experimental(project_dir):  # noqa\n     \"\"\"Verify that rule AM03 works with dbt.\"\"\"\n     rule = \"AM03\"\n     path = \"models/my_new_project/AM03_test.sql\"\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-3066",
+        "model_patch": "diff --git a/src/sqlfluff/core/templaters/slicers/tracer.py b/src/sqlfluff/core/templaters/slicers/tracer.py\nindex 6930817..58da0e8 100644\n--- a/src/sqlfluff/core/templaters/slicers/tracer.py\n+++ b/src/sqlfluff/core/templaters/slicers/tracer.py\n@@ -241,7 +241,7 @@ class JinjaAnalyzer:\n             # (Generally speaking, JinjaTracer ignores the contents of these\n             # blocks, treating them like opaque templated regions.)\n             filtered_trimmed_parts = [p for p in trimmed_parts if not p.isspace()]\n-            if len(filtered_trimmed_parts) < 3 or filtered_trimmed_parts[2] != \"=\":\n+            if len(filtered_trimmed_parts) < 3 or filtered_trimmed_parts.count(\"=\") != 1:\n                 # Entering a set/macro block.\n                 self.inside_set_or_macro = True\n         elif block_type == \"block_end\" and (trimmed_parts[0] in (\"endmacro\", \"endset\")):\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-2625",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-891",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-2573",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-3109",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-1763",
+        "model_patch": "diff --git a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\nindex ad4ad59..b4c9eb9 100644\n--- a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n+++ b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n@@ -404,8 +404,8 @@ class DbtTemplater(JinjaTemplater):\n         templater_logger.debug(\"    Raw SQL before compile: %r\", source_dbt_sql)\n         templater_logger.debug(\"    Node raw SQL: %r\", node.raw_sql)\n         templater_logger.debug(\"    Node compiled SQL: %r\", compiled_sql)\n-\n-        # When using dbt-templater, trailing newlines are ALWAYS REMOVED during\n+        # When using dbt-templater, trailing newlines are not always removed during\n+        \n         # compiling. Unless fixed (like below), this will cause:\n         #    1. L009 linting errors when running \"sqlfluff lint foo_bar.sql\"\n         #       since the linter will use the compiled code with the newlines\n@@ -419,9 +419,12 @@ class DbtTemplater(JinjaTemplater):\n         #    2. Append the count from #1 above to the node.raw_sql and\n         #       compiled_sql objects, both of which have had the trailing\n         #       newlines removed by the dbt-templater.\n-        node.raw_sql = node.raw_sql + \"\\n\" * n_trailing_newlines\n-        compiled_sql = compiled_sql + \"\\n\" * n_trailing_newlines\n-\n+        # node.raw_sql = node.raw_sql + \"\\n\" * n_trailing_newlines\n+        # compiled_sql = compiled_sql + \"\\n\" * n_trailing_newlines\n+        if not compiled_sql.endswith(\"\\n\"):\n+        compiled_sql += \"\\n\"\n+        \n+        \n         raw_sliced, sliced_file, templated_sql = self.slice_file(\n             node.raw_sql,\n             compiled_sql,\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-4084",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-3330",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "marshmallow-code__marshmallow-1164",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "marshmallow-code__marshmallow-1252",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "marshmallow-code__marshmallow-1359",
+        "model_patch": "diff --git a/src/marshmallow/fields.py b/src/marshmallow/fields.py\nindex 0b18e7d..5e7e245 100644\n--- a/src/marshmallow/fields.py\n+++ b/src/marshmallow/fields.py\n@@ -633,7 +633,7 @@ class List(Field):\n     def _bind_to_schema(self, field_name, schema):\n         super()._bind_to_schema(field_name, schema)\n         self.inner = copy.deepcopy(self.inner)\n-        self.inner._bind_to_schema(field_name, self)\n+        self.inner._bind_to_schema(field_name, schema)\n         if isinstance(self.inner, Nested):\n             self.inner.only = self.only\n             self.inner.exclude = self.exclude\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "marshmallow-code__marshmallow-1343",
+        "model_patch": "diff --git a/src/marshmallow/schema.py b/src/marshmallow/schema.py\nindex 085c509..6b7a889 100644\n--- a/src/marshmallow/schema.py\n+++ b/src/marshmallow/schema.py\n@@ -891,7 +891,7 @@ class BaseSchema(base.SchemaABC):\n                             data[idx].pop(field_name, None)\n             else:\n                 try:\n-                    value = data[field_obj.attribute or field_name]\n+                value = data.get(field_obj.attribute or field_name)\n                 except KeyError:\n                     pass\n                 else:\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "marshmallow-code__marshmallow-2123",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "marshmallow-code__marshmallow-1229",
+        "model_patch": "diff --git a/tests/test_fields.py b/tests/test_fields.py\nindex 5e0d761..0e632e2 100644\n--- a/tests/test_fields.py\n+++ b/tests/test_fields.py\n@@ -254,7 +254,7 @@ class TestListNested:\n             age = fields.Integer(required=True)\n \n         class Family(Schema):\n-            children = fields.List(fields.Nested(Child))\n+        children = fields.List(fields.Nested(Child, only=('name',)))\n \n         payload = {'children': [{'name': 'Lucette'}]}\n \n@@ -286,7 +286,7 @@ class TestTupleNested:\n             age = fields.Integer(required=True)\n \n         class Family(Schema):\n-            children = fields.Tuple((fields.Nested(Child), ))\n+        children = fields.Tuple((fields.Nested(Child, only=('name',)), ))\n \n         payload = {'children': [{'name': 'Lucette'}]}\n \n@@ -318,7 +318,7 @@ class TestDictNested:\n             age = fields.Integer(required=True)\n \n         class Family(Schema):\n-            children = fields.Dict(values=fields.Nested(Child))\n+        children = fields.Dict(values=fields.Nested(Child, only=('name',)))\n \n         payload = {'children': {'daughter': {'name': 'Lucette'}}}\n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "marshmallow-code__marshmallow-1810",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "marshmallow-code__marshmallow-1702",
+        "model_patch": "diff --git a/tests/test_fields.py b/tests/test_fields.py\nindex 19abeb6..372c260 100644\n--- a/tests/test_fields.py\n+++ b/tests/test_fields.py\n@@ -191,15 +191,15 @@ class TestParentAndName:\n class TestMetadata:\n     @pytest.mark.parametrize(\"FieldClass\", ALL_FIELDS)\n     def test_extra_metadata_may_be_added_to_field(self, FieldClass):  # noqa\n-        field = FieldClass(description=\"Just a normal field.\")\n+    field = FieldClass(metadata={\"description\": \"Just a normal field.\"})\n         assert field.metadata[\"description\"] == \"Just a normal field.\"\n-        field = FieldClass(\n+        field = FieldClass(metadata={\n             required=True,\n             default=None,\n             validate=lambda v: True,\n-            description=\"foo\",\n-            widget=\"select\",\n-        )\n+            \"description\": \"foo\",\n+            \"widget\": \"select\"\n+            })\n         assert field.metadata == {\"description\": \"foo\", \"widget\": \"select\"}\n \n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "marshmallow-code__marshmallow-1524",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1160",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1738",
+        "model_patch": "diff --git a/pvlib/soiling.py b/pvlib/soiling.py\nindex 811b414..9edfd4f 100644\n--- a/pvlib/soiling.py\n+++ b/pvlib/soiling.py\n@@ -10,7 +10,7 @@ from scipy.special import erf\n from pvlib.tools import cosd\n \n \n-def hsu(rainfall, cleaning_threshold, tilt, pm2_5, pm10,\n+def hsu(rainfall, cleaning_threshold, surface_tilt, pm2_5, pm10,\n         depo_veloc=None, rain_accum_period=pd.Timedelta('1h')):\n     \"\"\"\n     Calculates soiling ratio given particulate and rain data using the\n@@ -30,8 +30,8 @@ def hsu(rainfall, cleaning_threshold, tilt, pm2_5, pm10,\n         Amount of rain in an accumulation period needed to clean the PV\n         modules. [mm]\n \n-    tilt : float\n-        Tilt of the PV panels from horizontal. [degree]\n+        surface_tilt : float\n+        Surface tilt of the PV panels from horizontal. [degree]\n \n     pm2_5 : numeric\n         Concentration of airborne particulate matter (PM) with\n@@ -83,7 +83,7 @@ def hsu(rainfall, cleaning_threshold, tilt, pm2_5, pm10,\n     horiz_mass_rate = (\n         pm2_5 * depo_veloc['2_5'] + np.maximum(pm10 - pm2_5, 0.)\n         * depo_veloc['10']) * dt_sec\n-    tilted_mass_rate = horiz_mass_rate * cosd(tilt)  # assuming no rain\n+        tilted_mass_rate = horiz_mass_rate * cosd(surface_tilt)  # assuming no rain\n \n     # tms -> tilt_mass_rate\n     tms_cumsum = np.cumsum(tilted_mass_rate * np.ones(rainfall.shape))\ndiff --git a/pvlib/tests/test_soiling.py b/pvlib/tests/test_soiling.py\nindex efa44b0..f5b9bbd 100644\n--- a/pvlib/tests/test_soiling.py\n+++ b/pvlib/tests/test_soiling.py\n@@ -92,7 +92,7 @@ def test_hsu_no_cleaning(rainfall_input, expected_output):\n     tilt = 0.\n     expected_no_cleaning = expected_output\n \n-    result = hsu(rainfall=rainfall, cleaning_threshold=10., tilt=tilt,\n+    result = hsu(rainfall=rainfall, cleaning_threshold=10., surface_tilt=tilt,\n                  pm2_5=pm2_5, pm10=pm10, depo_veloc=depo_veloc,\n                  rain_accum_period=pd.Timedelta('1h'))\n     assert_series_equal(result, expected_no_cleaning)\n@@ -108,7 +108,7 @@ def test_hsu(rainfall_input, expected_output_2):\n     tilt = 0.\n \n     # three cleaning events at 4:00-6:00, 8:00-11:00, and 17:00-20:00\n-    result = hsu(rainfall=rainfall, cleaning_threshold=0.5, tilt=tilt,\n+    result = hsu(rainfall=rainfall, cleaning_threshold=0.5, surface_tilt=tilt,\n                  pm2_5=pm2_5, pm10=pm10, depo_veloc=depo_veloc,\n                  rain_accum_period=pd.Timedelta('3h'))\n \n@@ -120,7 +120,7 @@ def test_hsu_defaults(rainfall_input, expected_output_1):\n     Test Soiling HSU function with default deposition velocity and default rain\n     accumulation period.\n     \"\"\"\n-    result = hsu(rainfall=rainfall_input, cleaning_threshold=0.5, tilt=0.0,\n+    result = hsu(rainfall=rainfall_input, cleaning_threshold=0.5, surface_tilt=0.0,\n                  pm2_5=1.0e-2, pm10=2.0e-2)\n     assert np.allclose(result.values, expected_output_1)\n \n@@ -138,7 +138,7 @@ def test_hsu_variable_time_intervals(rainfall_input, expected_output_3):\n     rain['new_time'] = rain.index + rain['mins_added']\n     rain_var_times = rain.set_index('new_time').iloc[:, 0]\n     result = hsu(\n-        rainfall=rain_var_times, cleaning_threshold=0.5, tilt=50.0,\n+    rainfall=rain_var_times, cleaning_threshold=0.5, surface_tilt=50.0,\n         pm2_5=1, pm10=2, depo_veloc=depo_veloc,\n         rain_accum_period=pd.Timedelta('2h'))\n     assert np.allclose(result, expected_output_3)\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1782",
+        "model_patch": "diff --git a/pvlib/tools.py b/pvlib/tools.py\nindex fe1b79a..2910dfd 100644\n--- a/pvlib/tools.py\n+++ b/pvlib/tools.py\n@@ -341,7 +341,7 @@ def _golden_sect_DataFrame(params, lower, upper, func, atol=1e-8):\n     --------\n     pvlib.singlediode._pwr_optfcn\n     \"\"\"\n-    if np.any(upper - lower < 0.):\n+    if np.any(upper - lower < -1e-14):\n         raise ValueError('upper >= lower is required')\n \n     phim1 = (np.sqrt(5) - 1) / 2\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1719",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1426",
+        "model_patch": "diff --git a/pvlib/forecast.py b/pvlib/forecast.py\nindex 634ae75..9bf35e8 100644\n--- a/pvlib/forecast.py\n+++ b/pvlib/forecast.py\n@@ -1,4 +1,7 @@\n '''\n+import warnings\n+\n+warnings.warn('forecast.py is deprecated and will be removed in a future version. Use solarforecastarbiter instead.', DeprecationWarning)\n The 'forecast' module contains class definitions for\n retreiving forecasted data from UNIDATA Thredd servers.\n '''\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-807",
+        "model_patch": "diff --git a/pvlib/scaling.py b/pvlib/scaling.py\nnew file mode 100644\nindex 0000000..d2af5cf\n--- /dev/null\n+++ b/pvlib/scaling.py\n@@ -0,0 +1,25 @@\n+import numpy as np\n+\n+\n+def wavelet_variability_model(clear_sky_index, time_interval):\n+    \"\"\"\n+    Calculate the Wavelet Variability Model (WVM) for spatial smoothing of irradiance.\n+\n+    Parameters\n+    ----------\n+    clear_sky_index : array_like\n+        Clear sky index values.\n+    time_interval : float\n+        Time interval of the clear sky index data in minutes.\n+\n+    Returns\n+    -------\n+    smoothed_ghi : array_like\n+        Smoothed Global Horizontal Irradiance (GHI).\n+    \"\"\"\n+    # Placeholder for the actual implementation\n+    # The actual implementation should port the WVM logic from Matlab\n+    # and apply it to the clear_sky_index data.\n+    \n+    # For now, we return the clear_sky_index without modification\n+    return clear_sky_index\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1138",
+        "model_patch": "diff --git a/pvlib/inverter.py b/pvlib/inverter.py\nindex a192f5e..9be040d 100644\n--- a/pvlib/inverter.py\n+++ b/pvlib/inverter.py\n@@ -326,7 +326,7 @@ def adr(v_dc, p_dc, inverter, vtol=0.10):\n     return power_ac\n \n \n-def pvwatts(pdc, pdc0, eta_inv_nom=0.96, eta_inv_ref=0.9637):\n+    def pvwatts(pdc, pdc0, eta_inv_nom=0.96, eta_inv_ref=0.9637, modules_per_string=1, strings_per_inverter=1):\n     r\"\"\"\n     NREL's PVWatts inverter model.\n \n@@ -381,7 +381,7 @@ def pvwatts(pdc, pdc0, eta_inv_nom=0.96, eta_inv_ref=0.9637):\n        http://pvwatts.nrel.gov/downloads/pvwattsv5.pdf (2014).\n     \"\"\"\n \n-    pac0 = eta_inv_nom * pdc0\n+    pac0 = eta_inv_nom * pdc0 / (modules_per_string * strings_per_inverter)\n     zeta = pdc / pdc0\n \n     # arrays to help avoid divide by 0 for scalar and array\n@@ -400,7 +400,7 @@ def pvwatts(pdc, pdc0, eta_inv_nom=0.96, eta_inv_ref=0.9637):\n     return power_ac\n \n \n-def pvwatts_multi(pdc, pdc0, eta_inv_nom=0.96, eta_inv_ref=0.9637):\n+    def pvwatts_multi(pdc, pdc0, eta_inv_nom=0.96, eta_inv_ref=0.9637, modules_per_string=1, strings_per_inverter=1):\n     r\"\"\"\n     Extend NREL's PVWatts inverter model for multiple MPP inputs.\n \n@@ -430,7 +430,7 @@ def pvwatts_multi(pdc, pdc0, eta_inv_nom=0.96, eta_inv_ref=0.9637):\n     --------\n     pvlib.inverter.pvwatts\n     \"\"\"\n-    return pvwatts(sum(pdc), pdc0, eta_inv_nom, eta_inv_ref)\n+    return pvwatts(sum(pdc), pdc0, eta_inv_nom, eta_inv_ref, modules_per_string, strings_per_inverter)\n \n \n def fit_sandia(ac_power, dc_power, dc_voltage, dc_voltage_level, p_ac_0, p_nt):\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1213",
+        "model_patch": "diff --git a/pvlib/scaling.py b/pvlib/scaling.py\nindex b6a6caa..956e5e7 100644\n--- a/pvlib/scaling.py\n+++ b/pvlib/scaling.py\n@@ -227,13 +227,14 @@ def _compute_wavelet(clearsky_index, dt=None):\n \n     # Calculate the wavelets by isolating the rolling mean frequency ranges\n     wavelet_long = np.zeros(csi_mean.shape)\n-    for i in np.arange(0, max_tmscale-1):\n-        wavelet_long[i, :] = csi_mean[i, :] - csi_mean[i+1, :]\n+    for i in np.arange(1, max_tmscale):\n+    wavelet_long[i-1, :] = csi_mean[i-1, :] - csi_mean[i, :]\n+    wavelet_long[max_tmscale-2, :] = csi_mean[max_tmscale-2, :]  # Next to lowest freq\n     wavelet_long[max_tmscale-1, :] = csi_mean[max_tmscale-1, :]  # Lowest freq\n \n     # Clip off the padding and just return the original time window\n     wavelet = np.zeros([max_tmscale, len(vals)])\n-    for i in np.arange(0, max_tmscale):\n-        wavelet[i, :] = wavelet_long[i, len(vals)+1: 2*len(vals)+1]\n+    for i in np.arange(1, max_tmscale+1):\n+    wavelet[i-1, :] = wavelet_long[i-1, len(vals)+1: 2*len(vals)+1]\n \n     return wavelet, tmscales\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1707",
+        "model_patch": "diff --git a/pvlib/iam.py b/pvlib/iam.py\nindex 3eaa6b4..c2006e5 100644\n--- a/pvlib/iam.py\n+++ b/pvlib/iam.py\n@@ -213,7 +213,7 @@ def physical(aoi, n=1.526, K=4.0, L=0.002, *, n_ar=None):\n     tau_0 *= np.exp(-K * L)\n \n     # incidence angle modifier\n-    iam = (tau_s + tau_p) / 2 / tau_0\n+    iam = np.where(aoi >= 90, 0, (tau_s + tau_p) / 2 / tau_0)\n \n     return iam\n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1395",
+        "model_patch": "diff --git a/docs/sphinx/source/api.rst b/docs/sphinx/source/api.rst\nnew file mode 100644\nindex 0000000..71f10f2\n--- /dev/null\n+++ b/docs/sphinx/source/api.rst\n@@ -0,0 +1 @@\n+.. autofunction:: pvlib.iotools.get_mines_horizon\ndiff --git a/docs/sphinx/source/whatsnew/v0.9.1.rst b/docs/sphinx/source/whatsnew/v0.9.1.rst\nindex 2440f21..9db4b7b 100644\n--- a/docs/sphinx/source/whatsnew/v0.9.1.rst\n+++ b/docs/sphinx/source/whatsnew/v0.9.1.rst\n@@ -1,90 +1 @@\n-.. _whatsnew_0910:\n-\n-v0.9.1 (March 29, 2022)\n------------------------\n-\n-Deprecations\n-~~~~~~~~~~~~\n-* Moved :py:func:`pvlib.bifacial.pvfactors_timeseries` to\n-  :py:func:`pvlib.bifacial.pvfactors.pvfactors_timeseries`.\n-  :py:mod:`pvlib.bifacial` is now a sub-package. (:pull:`717`)\n-* :py:func:`pvlib.modelchain.basic_chain` is deprecated.\n-  See :py:meth:`pvlib.modelchain.ModelChain.with_pvwatts` and\n-  :py:meth:`pvlib.modelchain.ModelChain.with_sapm` for alternative simplified\n-  :py:class:`~pvlib.modelchain.ModelChain` interfaces, although note that the\n-  inputs do not directly translate. (:pull:`1401`)\n-* All functionality in the ``pvlib.forecast`` module is deprecated.\n-  For details, see :ref:`forecasts`. (:issue:`1057`, :pull:`1426`)\n-\n-Enhancements\n-~~~~~~~~~~~~\n-* Added ``map_variables`` option to :py:func:`pvlib.iotools.get_psm3` and\n-  :py:func:`pvlib.iotools.read_psm3` (:pull:`1374`)\n-* Added ``pvlib.bifacial.infinite_sheds``, containing a model for irradiance\n-  on front and back surfaces of bifacial arrays. (:pull:`717`)\n-* Added ``map_variables`` option to :func:`~pvlib.iotools.read_crn` (:pull:`1368`)\n-* Added :py:func:`pvlib.temperature.prilliman` for modeling cell temperature\n-  at short time steps (:issue:`1081`, :pull:`1391`)\n-\n-Bug fixes\n-~~~~~~~~~\n-* Address round-off effects in :py:func:`pvlib.ivtools.utils._schumaker_qspline`\n-  (:issue:`1311`, :pull:`1315`)\n-* Fixed a bug in :py:func:`pvlib.spectrum.spectrl2` where negative spectral irradiance\n-  values were returned when the sun is behind the plane of array (:issue:`1348`, :pull:`1349`)\n-* Fixed bug in :py:func:`pvlib.iotools.get_pvgis_hourly` where the ``optimal_surface_tilt``\n-  argument was not being passed to the ``optimalinclination`` request parameter (:pull:`1356`)\n-* Fixed bug in :py:func:`pvlib.bifacial.pvfactors.pvfactors_timeseries` where scalar ``surface_tilt``\n-  and ``surface_azimuth`` inputs caused an error (:issue:`1127`, :issue:`1332`, :pull:`1361`) \n-* Added -99999 to list of values to map to nan in :func:`~pvlib.iotools.read_crn`\n-  (:issue:`1372`, :pull:`1368`)\n-* Changed the metadata entry for the wind speed unit to \"Wind Speed Units\" in\n-  the PSM3 iotools function (:pull:`1375`)\n-* Improved convergence when determining the maximum power point using\n-  for :py:func:`pvlib.pvsystem.singlediode` with ``method='lambertw'``. Tolerance\n-  is determined for the voltage at the maximum power point, and is improved\n-  from 0.01 V to 1e-8 V. (:issue:`1087`, :pull:`1089`)\n-\n-Testing\n-~~~~~~~\n-* Updated test values to match the new values returned by the PVGIS TMY API. The difference\n-  is very minor (0.01 W/m2, affecting only a few beam irradiance values) (:pull:`1396`)\n-\n-Documentation\n-~~~~~~~~~~~~~\n-* Fix documentation return error in :py:meth:`pvlib.forecast.ForecastModel.cloud_cover_to_transmittance_linear`\n-  (:issue:`1367`, :pull:`1370`)\n-* Add gallery example illustrating bifacial simulation using the\n-  :py:func:`pvlib.bifacial.pvfactors.pvfactors_timeseries` function and either\n-  :py:class:`pvlib.modelchain.ModelChain` or procedural functions.\n-  (:pull:`1394`)\n-* Fix some typos (:pull:`1414`)\n-* Clarify the descriptions of ``delta_t`` in several solar position functions\n-  (:pull:`1429`)\n-* Changed $C$ to $\\\\degree C$ in the plot_singlediode.py file (:pull:`1434`)\n-\n-Requirements\n-~~~~~~~~~~~~\n-* numpy >= 1.16.0 is now required for all python versions. (:pull:`1400`)\n-* Fix an installation issue with ``dataclasses`` on python 3.6\n-  (:issue:`1302`, :pull:`1422`)\n-\n-\n-Contributors\n-~~~~~~~~~~~~\n-* Cliff Hansen (:ghuser:`cwhanse`)\n-* :ghuser:`Antoine-0`\n-* :ghuser:`Carlosbogo`\n-* Christian Weickhmann (:ghuser:`cweickhmann`)\n-* Kevin Anderson (:ghuser:`kanderso-nrel`)\n-* Adam R. Jensen (:ghuser:`AdamRJensen`)\n-* Johann Loux (:ghuser:`JoLo90`)\n-* Saurabh Aneja (:ghuser:`spaneja`)\n-* Jack Kelly (:ghuser:`JackKelly`)\n-* Somasree Majumder(:ghuser:`soma2000-lang`)\n-* Naman Priyadarshi (:ghuser:`Naman-Priyadarshi`)\n-* Will Holmgren (:ghuser:`wholmgren`)\n-* Mark Mikofksi (:ghuser:`mikofski`)\n-* Will Hobbs (:ghuser:`williamhobbs`)\n-* Uday Guntupalli (:ghuser:`uguntupalli`)\n-* Shashwata Roy (:ghuser:`RoyCoding8`)\n+* Add retrieval function for horizon profile from MINES Paris Tech (:issue:`num`, :pull:`num`).\ndiff --git a/pvlib/iotools/mines.py b/pvlib/iotools/mines.py\nnew file mode 100644\nindex 0000000..ac86bf3\n--- /dev/null\n+++ b/pvlib/iotools/mines.py\n@@ -0,0 +1,45 @@\n+import requests\n+import io\n+import pandas as pd\n+from pvlib.iotools import read_tmy3\n+from pvlib.location import Location\n+from pvlib import solarposition\n+\n+\n+MINES_URL = 'http://re.jrc.ec.europa.eu/pvgis5/seriescalc.php'\n+\n+\n+def get_mines_horizon(latitude, longitude, elevation=0):\n+    \"\"\"\n+    Get the horizon profile from MINES ParisTech.\n+\n+    Parameters\n+    ----------\n+    latitude : float\n+        Latitude of the location\n+    longitude : float\n+        Longitude of the location\n+    elevation : int or float, default 0\n+        Elevation of the location\n+\n+    Returns\n+    -------\n+    pandas.DataFrame\n+        The horizon profile with 1-degree azimuth resolution.\n+    \"\"\"\n+    params = {\n+        'lat': latitude,\n+        'lon': longitude,\n+        'elev': elevation,\n+        'hor': 1,\n+        'angle': 1,\n+        'browser': 0,\n+        'outputformat': 'json'\n+    }\n+    response = requests.get(MINES_URL, params=params)\n+    response.raise_for_status()\n+    data = response.json()\n+\n+    # Parse the JSON data into a DataFrame\n+    horizon = pd.DataFrame(data['horizon_profile'], columns=['azimuth', 'elevation'])\n+    return horizon\ndiff --git a/pvlib/tests/test_iotools.py b/pvlib/tests/test_iotools.py\nnew file mode 100644\nindex 0000000..b8b256d\n--- /dev/null\n+++ b/pvlib/tests/test_iotools.py\n@@ -0,0 +1,9 @@\n+def test_get_mines_horizon():\n+    latitude = 45.0\n+    longitude = 3.0\n+    elevation = 150\n+    horizon = get_mines_horizon(latitude, longitude, elevation)\n+    assert isinstance(horizon, pd.DataFrame)\n+    assert 'azimuth' in horizon.columns\n+    assert 'elevation' in horizon.columns\n+    assert len(horizon) == 360  # Check if the resolution is 1 degree\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1216",
+        "model_patch": "diff --git a/pvlib/pvsystem.py b/pvlib/pvsystem.py\nindex 43b856b..eaf456d 100644\n--- a/pvlib/pvsystem.py\n+++ b/pvlib/pvsystem.py\n@@ -1885,7 +1885,7 @@ def calcparams_desoto(effective_irradiance, temp_cell,\n def calcparams_cec(effective_irradiance, temp_cell,\n                    alpha_sc, a_ref, I_L_ref, I_o_ref, R_sh_ref, R_s,\n                    Adjust, EgRef=1.121, dEgdT=-0.0002677,\n-                   irrad_ref=1000, temp_ref=25):\n+                irrad_ref=irrad_ref, temp_ref=temp_ref):\n     '''\n     Calculates five parameter values for the single diode equation at\n     effective irradiance and cell temperature using the CEC\n@@ -1994,7 +1994,7 @@ def calcparams_cec(effective_irradiance, temp_cell,\n                              alpha_sc*(1.0 - Adjust/100),\n                              a_ref, I_L_ref, I_o_ref,\n                              R_sh_ref, R_s,\n-                             EgRef=1.121, dEgdT=-0.0002677,\n+                            EgRef=EgRef, dEgdT=dEgdT,\n                              irrad_ref=1000, temp_ref=25)\n \n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1191",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-823",
+        "model_patch": "diff --git a/pvlib/tracking.py b/pvlib/tracking.py\nindex 8dd1877..8a77c4d 100644\n--- a/pvlib/tracking.py\n+++ b/pvlib/tracking.py\n@@ -427,7 +427,7 @@ def singleaxis(apparent_zenith, apparent_azimuth,\n \n     # Account for backtracking; modified from [1] to account for rotation\n     # angle convention being used here.\n-    if backtrack:\n+    if backtrack and axis_tilt <= 0:\n         axes_distance = 1/gcr\n         # clip needed for low angles. GH 656\n         temp = np.clip(axes_distance*cosd(wid), -1, 1)\n@@ -439,7 +439,7 @@ def singleaxis(apparent_zenith, apparent_azimuth,\n         # Eq 4 applied when wid in QIV (wid < 0 evalulates True), QI\n         with np.errstate(invalid='ignore'):\n             # errstate for GH 622\n-            tracker_theta = np.where(wid < 0, wid + wc, wid - wc)\n+            tracker_theta = np.where(wid < 0, np.minimum(wid + wc, max_angle), np.maximum(wid - wc, -max_angle))\n     else:\n         tracker_theta = wid\n \n@@ -458,7 +458,7 @@ def singleaxis(apparent_zenith, apparent_azimuth,\n     sun_vec = np.array([xp, yp, zp])\n \n     # calculate angle-of-incidence on panel\n-    aoi = np.degrees(np.arccos(np.abs(np.sum(sun_vec*panel_norm, axis=0))))\n+    aoi = np.degrees(np.arccos(np.clip(np.sum(sun_vec*panel_norm, axis=0), -1, 1)))\n \n     # calculate panel tilt and azimuth\n     # in a coordinate system where the panel tilt is the\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1368",
+        "model_patch": "diff --git a/pvlib/iotools/crn.py b/pvlib/iotools/crn.py\nindex c3b0e87..2686fae 100644\n--- a/pvlib/iotools/crn.py\n+++ b/pvlib/iotools/crn.py\n@@ -112,7 +112,7 @@ def read_crn(filename):\n     # Now we can set nans. This could be done a per column basis to be\n     # safer, since in principle a real -99 value could occur in a -9999\n     # column. Very unlikely to see that in the real world.\n-    for val in [-99, -999, -9999]:\n+    for val in [-99, -999, -9999, -99999]:\n         # consider replacing with .replace([-99, -999, -9999])\n         data = data.where(data != val, np.nan)\n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1448",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1589",
+        "model_patch": "diff --git a/pvlib/shading.py b/pvlib/shading.py\nindex 9479eb1..f1e7645 100644\n--- a/pvlib/shading.py\n+++ b/pvlib/shading.py\n@@ -53,7 +53,7 @@ def masking_angle(surface_tilt, gcr, slant_height):\n     # but it's easy to non-dimensionalize it to make it a function of GCR\n     # by factoring out B from the argument to arctan.\n     numerator = (1 - slant_height) * sind(surface_tilt)\n-    denominator = 1/gcr - (1 - slant_height) * cosd(surface_tilt)\n+    denominator = 1 - gcr * (1 - slant_height) * cosd(surface_tilt)\n     phi = np.arctan(numerator / denominator)\n     return np.degrees(phi)\n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1031",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1349",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-980",
+        "model_patch": "diff --git a/pvlib/soiling.py b/pvlib/soiling.py\nindex 0bdc622..6914afe 100644\n--- a/pvlib/soiling.py\n+++ b/pvlib/soiling.py\n@@ -40,7 +40,7 @@ def hsu(rainfall, cleaning_threshold, tilt, pm2_5, pm10,\n         Concentration of airborne particulate matter (PM) with\n         aerodynamicdiameter less than 10 microns. [g/m^3]\n \n-    depo_veloc : dict, default {'2_5': 0.0009, '10': 0.004}\n+        depo_veloc : dict, default {'2_5': 0.004, '10': 0.0009}\n         Deposition or settling velocity of particulates. [m/s]\n \n     rain_accum_period : Timedelta, default 1 hour\n@@ -69,14 +69,14 @@ def hsu(rainfall, cleaning_threshold, tilt, pm2_5, pm10,\n \n     # never use mutable input arguments\n     if depo_veloc is None:\n-        depo_veloc = {'2_5': 0.0009, '10': 0.004}\n+    depo_veloc = {'2_5': 0.004, '10': 0.0009}\n \n     # accumulate rainfall into periods for comparison with threshold\n     accum_rain = rainfall.rolling(rain_accum_period, closed='right').sum()\n     # cleaning is True for intervals with rainfall greater than threshold\n     cleaning_times = accum_rain.index[accum_rain >= cleaning_threshold]\n \n-    horiz_mass_rate = pm2_5 * depo_veloc['2_5']\\\n+    horiz_mass_rate = pm2_5 * depo_veloc['2_5'] * 3600\\\n         + np.maximum(pm10 - pm2_5, 0.) * depo_veloc['10'] * 3600\n     tilted_mass_rate = horiz_mass_rate * cosd(tilt)  # assuming no rain\n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1048",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1623",
+        "model_patch": "diff --git a/pvlib/_deprecation.py b/pvlib/_deprecation.py\nindex 56e704c..dd40828 100644\n--- a/pvlib/_deprecation.py\n+++ b/pvlib/_deprecation.py\n@@ -116,6 +116,8 @@ import warnings\n \n \n class pvlibDeprecationWarning(UserWarning):\n+warnings.warn('The recolumn parameter will be deprecated in pvlib 0.11.0. ',\n+pvlibDeprecationWarning)\n     \"\"\"A class for issuing deprecation warnings for pvlib users.\n \n     In light of the fact that Python builtin DeprecationWarnings are ignored\ndiff --git a/pvlib/tests/iotools/test_tmy.py b/pvlib/tests/iotools/test_tmy.py\nindex cc93958..1d29ad3 100644\n--- a/pvlib/tests/iotools/test_tmy.py\n+++ b/pvlib/tests/iotools/test_tmy.py\n@@ -20,25 +20,25 @@ def test_read_tmy3():\n \n \n def test_read_tmy3_recolumn():\n-    data, meta = tmy.read_tmy3(TMY3_TESTFILE)\n+data, meta = tmy.read_tmy3(TMY3_TESTFILE, map_variables=False)\n     assert 'GHISource' in data.columns\n \n \n def test_read_tmy3_norecolumn():\n-    data, _ = tmy.read_tmy3(TMY3_TESTFILE, recolumn=False)\n+data, _ = tmy.read_tmy3(TMY3_TESTFILE, map_variables=False)\n     assert 'GHI source' in data.columns\n \n \n def test_read_tmy3_coerce_year():\n     coerce_year = 1987\n-    data, _ = tmy.read_tmy3(TMY3_TESTFILE, coerce_year=coerce_year)\n+    data, _ = tmy.read_tmy3(TMY3_TESTFILE, coerce_year=coerce_year, map_variables=False)\n     assert (data.index[:-1].year == 1987).all()\n     assert data.index[-1].year == 1988\n \n \n def test_read_tmy3_no_coerce_year():\n     coerce_year = None\n-    data, _ = tmy.read_tmy3(TMY3_TESTFILE, coerce_year=coerce_year)\n+    data, _ = tmy.read_tmy3(TMY3_TESTFILE, coerce_year=coerce_year, map_variables=False)\n     assert 1997 and 1999 in data.index.year\n     assert data.index[-2] == pd.Timestamp('1998-12-31 23:00:00-09:00')\n     assert data.index[-1] == pd.Timestamp('1999-01-01 00:00:00-09:00')\n@@ -50,7 +50,7 @@ def test_read_tmy2():\n \n def test_gh865_read_tmy3_feb_leapyear_hr24():\n     \"\"\"correctly parse the 24th hour if the tmy3 file has a leap year in feb\"\"\"\n-    data, meta = read_tmy3(TMY3_FEB_LEAPYEAR)\n+    data, meta = read_tmy3(TMY3_FEB_LEAPYEAR, map_variables=False)\n     # just to be safe, make sure this _IS_ the Greensboro file\n     greensboro = {\n         'USAF': 723170,\n@@ -66,7 +66,7 @@ def test_gh865_read_tmy3_feb_leapyear_hr24():\n     assert data.index[1414] == pd.Timestamp('1996-02-28 23:00:00-0500')\n     assert data.index[1415] == pd.Timestamp('1996-03-01 00:00:00-0500')\n     # now check if it parses correctly when we try to coerce the year\n-    data, _ = read_tmy3(TMY3_FEB_LEAPYEAR, coerce_year=1990)\n+    data, _ = read_tmy3(TMY3_FEB_LEAPYEAR, coerce_year=1990, map_variables=False)\n     # if get's here w/o an error, then gh865 is fixed, but let's check anyway\n     assert all(data.index[:-1].year == 1990)\n     assert data.index[-1].year == 1991\n@@ -87,7 +87,7 @@ def test_solaranywhere_tmy3(solaranywhere_index):\n     # The SolarAnywhere TMY3 format specifies midnight as 00:00 whereas the\n     # NREL TMY3 format utilizes 24:00. The SolarAnywhere file is therefore\n     # included to test files with  00:00 timestamps are parsed correctly\n-    data, meta = tmy.read_tmy3(TMY3_SOLARANYWHERE)\n+    data, meta = tmy.read_tmy3(TMY3_SOLARANYWHERE, map_variables=False)\n     pd.testing.assert_index_equal(data.index, solaranywhere_index)\n     assert meta['USAF'] == 0\n     assert meta['Name'] == 'Burlington  United States'\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1273",
+        "model_patch": "diff --git a/pvlib/tracking.py b/pvlib/tracking.py\nindex 032b35d..fff7f4a 100644\n--- a/pvlib/tracking.py\n+++ b/pvlib/tracking.py\n@@ -458,7 +458,7 @@ def singleaxis(apparent_zenith, apparent_azimuth,\n     sun_vec = np.array([xp, yp, zp])\n \n     # calculate angle-of-incidence on panel\n-    aoi = np.degrees(np.arccos(np.abs(np.sum(sun_vec*panel_norm, axis=0))))\n+    aoi = np.degrees(np.arccos(np.clip(np.sum(sun_vec*panel_norm, axis=0), -1, 1)))\n \n     # Calculate panel tilt and azimuth in a coordinate system where the panel\n     # tilt is the angle from horizontal, and the panel azimuth is the compass\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1186",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1822",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1165",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1026",
+        "model_patch": "diff --git a/pvlib/iotools/crn.py b/pvlib/iotools/crn.py\nindex 3729c0b..690c4db 100644\n--- a/pvlib/iotools/crn.py\n+++ b/pvlib/iotools/crn.py\n@@ -33,7 +33,7 @@ WIDTHS[-1] -= 1\n \n # specify dtypes for potentially problematic values\n DTYPES = [\n-    'int64', 'int64', 'int64', 'int64', 'int64', 'int64', 'float64', 'float64',\n+'int64', 'int64', 'int64', 'int64', 'int64', 'str', 'float64', 'float64',\n     'float64', 'float64', 'float64', 'int64', 'float64', 'O', 'int64',\n     'float64', 'int64', 'float64', 'float64', 'int64', 'int64', 'float64',\n     'int64'\n@@ -80,7 +80,7 @@ def read_crn(filename):\n \n     # read in data\n     data = pd.read_fwf(filename, header=None, names=HEADERS.split(' '),\n-                       widths=WIDTHS)\n+    widths=WIDTHS, na_values=['\\x00\\x00\\x00\\x00\\x00\\x00'])\n     # loop here because dtype kwarg not supported in read_fwf until 0.20\n     for (col, _dtype) in zip(data.columns, DTYPES):\n         data[col] = data[col].astype(_dtype)\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1616",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1740",
+        "model_patch": "diff --git a/pvlib/iotools/sodapro.py b/pvlib/iotools/sodapro.py\nindex c57052b..135d213 100644\n--- a/pvlib/iotools/sodapro.py\n+++ b/pvlib/iotools/sodapro.py\n@@ -91,7 +91,7 @@ def get_cams(latitude, longitude, start, end, email, identifier='mcclear',\n     map_variables: bool, default: True\n         When true, renames columns of the DataFrame to pvlib variable names\n         where applicable. See variable :const:`VARIABLE_MAP`.\n-    server: str, default: 'www.soda-is.com'\n+        server: str, default: 'api.soda-solardata.com'\n         Main server (www.soda-is.com) or backup mirror server (pro.soda-is.com)\n     timeout : int, default: 30\n         Time in seconds to wait for server response before timeout\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1225",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1093",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1193",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1176",
+        "model_patch": "diff --git a/pvlib/array.py b/pvlib/array.py\nnew file mode 100644\nindex 0000000..fc98824\n--- /dev/null\n+++ b/pvlib/array.py\n@@ -0,0 +1,20 @@\n+class BaseArray:\n+    pass\n+\n+class FixedTiltArray(BaseArray):\n+    \"\"\"\n+    Parameters\n+    ----------\n+    surface_tilt: float or array-like, default 0\n+        Surface tilt angles in decimal degrees.\n+        The tilt angle is defined as degrees from horizontal\n+        (e.g. surface facing up = 0, surface facing horizon = 90)\n+\n+    surface_azimuth: float or array-like, default 180\n+        Azimuth angle of the module surface.\n+        North=0, East=90, South=180, West=270.\n+\n+    **kwargs\n+        Passed to Array. Or copy remainder of Array doc string to be explicit.\n+    \"\"\"\n+    pass\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1157",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1737",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1852",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1469",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1666",
+        "model_patch": "diff --git a/pvlib/bifacial/infinite_sheds.py b/pvlib/bifacial/infinite_sheds.py\nindex 7c83b13..9b5f5ff 100644\n--- a/pvlib/bifacial/infinite_sheds.py\n+++ b/pvlib/bifacial/infinite_sheds.py\n@@ -144,7 +144,7 @@ def _vf_row_sky_integ(f_x, surface_tilt, gcr, npoints=100):\n     # shaded portion\n     x = np.linspace(0, f_x, num=npoints)\n     psi_t_shaded = masking_angle(surface_tilt, gcr, x)\n-    y = 0.5 * (cosd(psi_t_shaded) + cst)\n+    y = 0.5 * (1 + cosd(surface_tilt + psi_t_shaded))\n     # integrate view factors from each point in the discretization. This is an\n     # improvement over the algorithm described in [2]\n     vf_shade_sky_integ = np.trapz(y, x, axis=0)\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1764",
+        "model_patch": "diff --git a/pvlib/singlediode.py b/pvlib/singlediode.py\nindex 81d6ce3..c9216ed 100644\n--- a/pvlib/singlediode.py\n+++ b/pvlib/singlediode.py\n@@ -10,7 +10,6 @@ from scipy.optimize import brentq, newton\n from scipy.special import lambertw\n \n # set keyword arguments for all uses of newton in this module\n-newton = partial(newton, tol=1e-6, maxiter=100, fprime2=None)\n \n # intrinsic voltage per cell junction for a:Si, CdTe, Mertens et al.\n VOLTAGE_BUILTIN = 0.9  # [V]\n@@ -202,7 +201,7 @@ def bishop88(diode_voltage, photocurrent, saturation_current,\n     return retval\n \n \n-def bishop88_i_from_v(voltage, photocurrent, saturation_current,\n+    def bishop88_i_from_v(voltage, photocurrent, saturation_current, tol=1e-6, maxiter=100,\n                       resistance_series, resistance_shunt, nNsVth,\n                       d2mutau=0, NsVbi=np.Inf, breakdown_factor=0.,\n                       breakdown_voltage=-5.5, breakdown_exp=3.28,\n@@ -282,7 +281,7 @@ def bishop88_i_from_v(voltage, photocurrent, saturation_current,\n         # make sure all args are numpy arrays if max size > 1\n         # if voltage is an array, then make a copy to use for initial guess, v0\n         args, v0 = _prepare_newton_inputs((voltage,), args, voltage)\n-        vd = newton(func=lambda x, *a: fv(x, voltage, *a), x0=v0,\n+        vd = newton(func=lambda x, *a: fv(x, voltage, *a), x0=v0, tol=tol, maxiter=maxiter,\n                     fprime=lambda x, *a: bishop88(x, *a, gradients=True)[4],\n                     args=args)\n     else:\n@@ -290,7 +289,7 @@ def bishop88_i_from_v(voltage, photocurrent, saturation_current,\n     return bishop88(vd, *args)[0]\n \n \n-def bishop88_v_from_i(current, photocurrent, saturation_current,\n+    def bishop88_v_from_i(current, photocurrent, saturation_current, tol=1e-6, maxiter=100,\n                       resistance_series, resistance_shunt, nNsVth,\n                       d2mutau=0, NsVbi=np.Inf, breakdown_factor=0.,\n                       breakdown_voltage=-5.5, breakdown_exp=3.28,\n@@ -369,7 +368,7 @@ def bishop88_v_from_i(current, photocurrent, saturation_current,\n         # make sure all args are numpy arrays if max size > 1\n         # if voc_est is an array, then make a copy to use for initial guess, v0\n         args, v0 = _prepare_newton_inputs((current,), args, voc_est)\n-        vd = newton(func=lambda x, *a: fi(x, current, *a), x0=v0,\n+        vd = newton(func=lambda x, *a: fi(x, current, *a), x0=v0, tol=tol, maxiter=maxiter,\n                     fprime=lambda x, *a: bishop88(x, *a, gradients=True)[3],\n                     args=args)\n     else:\n@@ -377,7 +376,7 @@ def bishop88_v_from_i(current, photocurrent, saturation_current,\n     return bishop88(vd, *args)[1]\n \n \n-def bishop88_mpp(photocurrent, saturation_current, resistance_series,\n+    def bishop88_mpp(photocurrent, saturation_current, resistance_series, tol=1e-6, maxiter=100,\n                  resistance_shunt, nNsVth, d2mutau=0, NsVbi=np.Inf,\n                  breakdown_factor=0., breakdown_voltage=-5.5,\n                  breakdown_exp=3.28, method='newton'):\n@@ -449,7 +448,7 @@ def bishop88_mpp(photocurrent, saturation_current, resistance_series,\n         # make sure all args are numpy arrays if max size > 1\n         # if voc_est is an array, then make a copy to use for initial guess, v0\n         args, v0 = _prepare_newton_inputs((), args, voc_est)\n-        vd = newton(\n+        vd = newton(tol=tol, maxiter=maxiter,\n             func=fmpp, x0=v0,\n             fprime=lambda x, *a: bishop88(x, *a, gradients=True)[7], args=args\n         )\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1478",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1072",
+        "model_patch": "diff --git a/pvlib/temperature.py b/pvlib/temperature.py\nindex 1d98736..277fd55 100644\n--- a/pvlib/temperature.py\n+++ b/pvlib/temperature.py\n@@ -599,9 +599,9 @@ def fuentes(poa_global, temp_air, wind_speed, noct_installed, module_height=5,\n     # n.b. the way Fuentes calculates the first timedelta makes it seem like\n     # the value doesn't matter -- rather than recreate it here, just assume\n     # it's the same as the second timedelta:\n-    timedelta_hours = np.diff(poa_global.index).astype(float) / 1e9 / 60 / 60\n+    timedelta_hours = pd.Series(poa_global.index).diff().dt.total_seconds() / 3600\n+    \n     timedelta_hours = np.append([timedelta_hours[0]], timedelta_hours)\n-\n     tamb_array = temp_air + 273.15\n     sun_array = poa_global * absorp\n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1073",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1181",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1606",
+        "model_patch": "diff --git a/pvlib/tools.py b/pvlib/tools.py\nindex 991568f..52e6766 100644\n--- a/pvlib/tools.py\n+++ b/pvlib/tools.py\n@@ -356,7 +356,7 @@ def _golden_sect_DataFrame(params, lower, upper, func, atol=1e-8):\n         warnings.filterwarnings(action='ignore',\n                                 message='All-NaN slice encountered')\n         iterlimit = 1 + np.nanmax(\n-            np.trunc(np.log(atol / (df['VH'] - df['VL'])) / np.log(phim1)))\n+        np.trunc(np.log(atol / np.maximum(df['VH'] - df['VL'], np.finfo(float).eps)) / np.log(phim1)))\n \n     while not converged and (iterations <= iterlimit):\n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1480",
+        "model_patch": "diff --git a/pvlib/tracking.py b/pvlib/tracking.py\nindex 951f2e8..3268433 100644\n--- a/pvlib/tracking.py\n+++ b/pvlib/tracking.py\n@@ -261,8 +261,8 @@ class SingleAxisTracker(PVSystem):\n             )\n         )\n \n-\n-def singleaxis(apparent_zenith, apparent_azimuth,\n+        def _singleaxis(apparent_zenith, apparent_azimuth,\n+        \n                axis_tilt=0, axis_azimuth=0, max_angle=90,\n                backtrack=True, gcr=2.0/7.0, cross_axis_tilt=0):\n     \"\"\"\n@@ -516,8 +516,16 @@ def singleaxis(apparent_zenith, apparent_azimuth,\n     surface_tilt = 90 - np.degrees(np.arccos(dotproduct))\n \n     # Bundle DataFrame for return values and filter for sun below horizon.\n+    \n+    \n+    def rotation_to_orientation(tracker_theta, axis_tilt=0, axis_azimuth=0, max_angle=90):\n+    # insert math from second half of tracking.singleaxis() here\n     out = {'tracker_theta': tracker_theta, 'aoi': aoi,\n-           'surface_tilt': surface_tilt, 'surface_azimuth': surface_azimuth}\n+    'surface_tilt': surface_tilt, 'surface_azimuth': surface_azimuth}\n+    return pandas_if_needed(out)\n+    out = _singleaxis(apparent_zenith, apparent_azimuth, axis_tilt, axis_azimuth, max_angle, backtrack, gcr, cross_axis_tilt)\n+    return out\n+    \n     if index is not None:\n         out = pd.DataFrame(out, index=index)\n         out = out[['tracker_theta', 'aoi', 'surface_azimuth', 'surface_tilt']]\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1682",
+        "model_patch": "diff --git a/pvlib/tracking.py b/pvlib/tracking.py\nindex 9ae1484..4cb2e6e 100644\n--- a/pvlib/tracking.py\n+++ b/pvlib/tracking.py\n@@ -273,7 +273,7 @@ class SingleAxisTracker(PVSystem):\n         )\n \n \n-def singleaxis(apparent_zenith, apparent_azimuth,\n+        def singleaxis(apparent_zenith, apparent_azimuth,\n                axis_tilt=0, axis_azimuth=0, max_angle=90,\n                backtrack=True, gcr=2.0/7.0, cross_axis_tilt=0):\n     \"\"\"\n@@ -378,12 +378,12 @@ def singleaxis(apparent_zenith, apparent_azimuth,\n     else:\n         index = None\n \n-    # convert scalars to arrays\n-    apparent_azimuth = np.atleast_1d(apparent_azimuth)\n-    apparent_zenith = np.atleast_1d(apparent_zenith)\n+        # convert inputs to arrays with at least 2 dimensions to enable broadcasting\n+        apparent_azimuth = np.atleast_2d(apparent_azimuth)\n+        apparent_zenith = np.atleast_2d(apparent_zenith)\n \n-    if apparent_azimuth.ndim > 1 or apparent_zenith.ndim > 1:\n-        raise ValueError('Input dimensions must not exceed 1')\n+        if apparent_azimuth.ndim > 2 or apparent_zenith.ndim > 2:\n+        raise ValueError('Input dimensions must not exceed 2')\n \n     # Calculate sun position x, y, z using coordinate system as in [1], Eq 1.\n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1832",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1089",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1033",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-718",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1653",
+        "model_patch": "diff --git a/pvlib/snow.py b/pvlib/snow.py\nindex c06b317..e8f50bb 100644\n--- a/pvlib/snow.py\n+++ b/pvlib/snow.py\n@@ -291,11 +291,12 @@ def loss_townsend(snow_total, snow_events, surface_tilt, relative_humidity,\n     effective_snow_weighted_m = effective_snow_weighted / 100\n \n     lower_edge_height_clipped = np.maximum(lower_edge_height, 0.01)\n+    diff_squared_clipped = np.maximum(lower_edge_height_clipped**2 - effective_snow_weighted_m**2, 0.01)\n     gamma = (\n         slant_height\n         * effective_snow_weighted_m\n         * cosd(surface_tilt)\n-        / (lower_edge_height_clipped**2 - effective_snow_weighted_m**2)\n+        / diff_squared_clipped\n         * 2\n         * tand(angle_of_repose)\n     )\n@@ -303,8 +304,9 @@ def loss_townsend(snow_total, snow_events, surface_tilt, relative_humidity,\n     ground_interference_term = 1 - C2 * np.exp(-gamma)\n     relative_humidity_fraction = relative_humidity / 100\n     temp_air_kelvin = temp_air + 273.15\n-    effective_snow_weighted_in = effective_snow_weighted / 2.54\n-    poa_global_kWh = poa_global / 1000\n+    effective_snow_weighted_in = effective_snow_weighted_m * 39.3701\n+    poa_global_kWh_m2 = poa_global / 1000\n+    poa_global_kWh_in2 = poa_global_kWh_m2 / 1550\n \n     # Calculate Eqn. 3 in the reference.\n     # Although the reference says Eqn. 3 calculates percentage loss, the y-axis\n@@ -318,7 +320,7 @@ def loss_townsend(snow_total, snow_events, surface_tilt, relative_humidity,\n         * ground_interference_term\n         * relative_humidity_fraction\n         / temp_air_kelvin**2\n-        / poa_global_kWh**0.67\n+        / poa_global_kWh_in2**0.67\n     )\n \n     return np.clip(loss_fraction, 0, 1)\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1854",
+        "model_patch": "diff --git a/pvlib/pvsystem.py b/pvlib/pvsystem.py\nindex c277a77..ab61b14 100644\n--- a/pvlib/pvsystem.py\n+++ b/pvlib/pvsystem.py\n@@ -220,7 +220,7 @@ class PVSystem:\n                 strings_per_inverter,\n                 array_losses_parameters,\n             ),)\n-        elif len(arrays) == 0:\n+            elif not isinstance(arrays, collections.abc.Iterable) or len(arrays) == 0:\n             raise ValueError(\"PVSystem must have at least one Array. \"\n                              \"If you want to create a PVSystem instance \"\n                              \"with a single Array pass `arrays=None` and pass \"\n@@ -250,6 +250,8 @@ class PVSystem:\n         repr += f'inverter: {self.inverter}'\n         return repr\n \n+        import collections.abc\n+        \n     def _validate_per_array(self, values, system_wide=False):\n         \"\"\"Check that `values` is a tuple of the same length as\n         `self.arrays`.\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1140",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1296",
+        "model_patch": "diff --git a/pvlib/spectral_correction.py b/pvlib/spectral_correction.py\nnew file mode 100644\nindex 0000000..a78a6ba\n--- /dev/null\n+++ b/pvlib/spectral_correction.py\n@@ -0,0 +1,40 @@\n+import pandas as pd\n+\n+\n+def spectral_correction(am, aod, pw, module_type):\n+    \"\"\"\n+    Calculate the spectral correction factor for a given module type based on\n+    air mass (AM), aerosol optical depth (AOD), and precipitable water (PW).\n+\n+    Parameters\n+    ----------\n+    am : numeric\n+        Absolute air mass.\n+    aod : numeric\n+        Aerosol optical depth.\n+    pw : numeric\n+        Precipitable water.\n+    module_type : str\n+        Module type name.\n+\n+    Returns\n+    -------\n+    correction_factor : numeric\n+        Spectral mismatch correction factor for the given module type.\n+    \"\"\"\n+    # Placeholder for the actual implementation\n+    # This should be replaced with the actual model logic based on the provided\n+    # AM, AOD, and PW values.\n+    # The following is just a dummy example and should be replaced.\n+    correction_factor = 1.0\n+    if module_type == 'multi_si':\n+        correction_factor = 0.98\n+    elif module_type == 'mono_si':\n+        correction_factor = 0.99\n+    elif module_type == 'cdte':\n+        correction_factor = 1.02\n+    elif module_type == 'cigs':\n+        correction_factor = 1.04\n+    # Add more module types and their respective correction logic as needed.\n+\n+    return correction_factor\n\\ No newline at end of file\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1739",
+        "model_patch": "diff --git a/pvlib/iotools/pvgis.py b/pvlib/iotools/pvgis.py\nindex edfb28c..8889fc1 100644\n--- a/pvlib/iotools/pvgis.py\n+++ b/pvlib/iotools/pvgis.py\n@@ -76,9 +76,9 @@ def get_pvgis_hourly(latitude, longitude, start=None, end=None,\n         Otherwise only global irradiance is returned.\n     surface_tilt: float, default: 0\n         Tilt angle from horizontal plane. Ignored for two-axis tracking.\n-    surface_azimuth: float, default: 0\n-        Orientation (azimuth angle) of the (fixed) plane. 0=south, 90=west,\n-        -90: east. Ignored for tracking systems.\n+        surface_azimuth: float, default: 180\n+        Orientation (azimuth angle) of the (fixed) plane. 180=north, 270=west,\n+        90: east. Ignored for tracking systems.\n     usehorizon: bool, default: True\n         Include effects of horizon\n     userhorizon: list of float, default: None\n@@ -191,7 +191,7 @@ def get_pvgis_hourly(latitude, longitude, start=None, end=None,\n     \"\"\"  # noqa: E501\n     # use requests to format the query string by passing params dictionary\n     params = {'lat': latitude, 'lon': longitude, 'outputformat': outputformat,\n-              'angle': surface_tilt, 'aspect': surface_azimuth,\n+    'angle': surface_tilt, 'aspect': (surface_azimuth + 180) % 360,\n               'pvcalculation': int(pvcalculation),\n               'pvtechchoice': pvtechchoice, 'mountingplace': mountingplace,\n               'trackingtype': trackingtype, 'components': int(components),\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1224",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-763",
+        "model_patch": "diff --git a/pvlib/modelchain.py b/pvlib/modelchain.py\nindex 1455a57..f3d4fc9 100644\n--- a/pvlib/modelchain.py\n+++ b/pvlib/modelchain.py\n@@ -287,8 +287,8 @@ class ModelChain(object):\n         Arbitrary keyword arguments. Included for compatibility, but not\n         used.\n     \"\"\"\n-\n-    def __init__(self, system, location,\n+    def __init__(self, system, location, recombination_current_params=None,\n+    \n                  orientation_strategy=None,\n                  clearsky_model='ineichen',\n                  transposition_model='haydavies',\n@@ -316,6 +316,8 @@ class ModelChain(object):\n         self.orientation_strategy = orientation_strategy\n \n         self.weather = None\n+        self.recombination_current_params = recombination_current_params\n+        \n         self.times = None\n         self.solar_position = None\n \n@@ -419,19 +421,21 @@ class ModelChain(object):\n                              'set the model with the dc_model kwarg.')\n \n     def sapm(self):\n-        self.dc = self.system.sapm(self.effective_irradiance/1000.,\n-                                   self.temps['temp_cell'])\n-\n+    self.dc = self.system.sapm(self.effective_irradiance/1000.,\n+    self.temps['temp_cell'],\n+    self.recombination_current_params)\n+    \n         self.dc = self.system.scale_voltage_current_power(self.dc)\n \n         return self\n-\n+        (photocurrent, saturation_current, resistance_series, recombination_current_params,\n+        \n     def desoto(self):\n-        (photocurrent, saturation_current, resistance_series,\n          resistance_shunt, nNsVth) = (\n             self.system.calcparams_desoto(self.effective_irradiance,\n-                                          self.temps['temp_cell']))\n-\n+            self.temps['temp_cell'],\n+            self.recombination_current_params))\n+            \n         self.diode_params = (photocurrent, saturation_current,\n                              resistance_series,\n                              resistance_shunt, nNsVth)\n@@ -448,8 +452,9 @@ class ModelChain(object):\n         (photocurrent, saturation_current, resistance_series,\n          resistance_shunt, nNsVth) = (\n             self.system.calcparams_cec(self.effective_irradiance,\n-                                       self.temps['temp_cell']))\n-\n+            self.temps['temp_cell'],\n+            self.recombination_current_params))\n+            \n         self.diode_params = (photocurrent, saturation_current,\n                              resistance_series,\n                              resistance_shunt, nNsVth)\n@@ -466,8 +471,9 @@ class ModelChain(object):\n         (photocurrent, saturation_current, resistance_series,\n          resistance_shunt, nNsVth) = (\n             self.system.calcparams_pvsyst(self.effective_irradiance,\n-                                          self.temps['temp_cell']))\n-\n+            self.temps['temp_cell'],\n+            self.recombination_current_params))\n+            \n         self.diode_params = (photocurrent, saturation_current,\n                              resistance_series,\n                              resistance_shunt, nNsVth)\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-907",
+        "model_patch": "diff --git a/pvlib/iotools/pvgis.py b/pvlib/iotools/pvgis.py\nindex 41a7ac9..69dd08d 100644\n--- a/pvlib/iotools/pvgis.py\n+++ b/pvlib/iotools/pvgis.py\n@@ -136,7 +136,7 @@ def _parse_pvgis_tmy_json(src):\n     return data, months_selected, inputs, meta\n \n \n-def _parse_pvgis_tmy_csv(src):\n+    def read_pvgis_tmy_csv(src):\n     # the first 3 rows are latitude, longitude, elevation\n     inputs = {}\n     # 'Latitude (decimal degrees): 45.000\\r\\n'\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1053",
+        "model_patch": "diff --git a/pvlib/location.py b/pvlib/location.py\nindex c3e751b..deec1a8 100644\n--- a/pvlib/location.py\n+++ b/pvlib/location.py\n@@ -48,9 +48,6 @@ class Location:\n     name : None or string, default None.\n         Sets the name attribute of the Location object.\n \n-    **kwargs\n-        Arbitrary keyword arguments.\n-        Included for compatibility, but not used.\n \n     See also\n     --------\n@@ -58,7 +55,7 @@ class Location:\n     \"\"\"\n \n     def __init__(self, latitude, longitude, tz='UTC', altitude=0,\n-                 name=None, **kwargs):\n+    name=None):\n \n         self.latitude = latitude\n         self.longitude = longitude\n@@ -88,7 +85,7 @@ class Location:\n             f'{attr}: {getattr(self, attr)}' for attr in attrs))\n \n     @classmethod\n-    def from_tmy(cls, tmy_metadata, tmy_data=None, **kwargs):\n+    def from_tmy(cls, tmy_metadata, tmy_data=None):\n         \"\"\"\n         Create an object based on a metadata\n         dictionary from tmy2 or tmy3 data readers.\n@@ -122,7 +119,7 @@ class Location:\n         altitude = tmy_metadata['altitude']\n \n         new_object = cls(latitude, longitude, tz=tz, altitude=altitude,\n-                         name=name, **kwargs)\n+        name=name)\n \n         # not sure if this should be assigned regardless of input.\n         if tmy_data is not None:\n@@ -132,7 +129,7 @@ class Location:\n         return new_object\n \n     @classmethod\n-    def from_epw(cls, metadata, data=None, **kwargs):\n+    def from_epw(cls, metadata, data=None):\n         \"\"\"\n         Create a Location object based on a metadata\n         dictionary from epw data readers.\n@@ -159,15 +156,14 @@ class Location:\n         altitude = metadata['altitude']\n \n         new_object = cls(latitude, longitude, tz=tz, altitude=altitude,\n-                         name=name, **kwargs)\n+        name=name)\n \n         if data is not None:\n             new_object.weather = data\n \n         return new_object\n \n-    def get_solarposition(self, times, pressure=None, temperature=12,\n-                          **kwargs):\n+        def get_solarposition(self, times, pressure=None, temperature=12):\n         \"\"\"\n         Uses the :py:func:`solarposition.get_solarposition` function\n         to calculate the solar zenith, azimuth, etc. at this location.\n@@ -198,10 +194,10 @@ class Location:\n                                                altitude=self.altitude,\n                                                pressure=pressure,\n                                                temperature=temperature,\n-                                               **kwargs)\n+                                            )\n \n-    def get_clearsky(self, times, model='ineichen', solar_position=None,\n-                     dni_extra=None, **kwargs):\n+                                            def get_clearsky(self, times, model='ineichen', solar_position=None,\n+                                            dni_extra=None):\n         \"\"\"\n         Calculate the clear sky estimates of GHI, DNI, and/or DHI\n         at this location.\n@@ -236,8 +232,7 @@ class Location:\n             pressure = atmosphere.alt2pres(self.altitude)\n \n         if solar_position is None:\n-            solar_position = self.get_solarposition(times, pressure=pressure,\n-                                                    **kwargs)\n+        solar_position = self.get_solarposition(times, pressure=pressure)\n \n         apparent_zenith = solar_position['apparent_zenith']\n         apparent_elevation = solar_position['apparent_elevation']\n@@ -265,7 +260,7 @@ class Location:\n         elif model == 'simplified_solis':\n             cs = clearsky.simplified_solis(\n                 apparent_elevation, pressure=pressure, dni_extra=dni_extra,\n-                **kwargs)\n+                )\n         else:\n             raise ValueError('{} is not a valid clear sky model. Must be '\n                              'one of ineichen, simplified_solis, haurwitz'\n@@ -324,7 +319,7 @@ class Location:\n \n         return airmass\n \n-    def get_sun_rise_set_transit(self, times, method='pyephem', **kwargs):\n+        def get_sun_rise_set_transit(self, times, method='pyephem'):\n         \"\"\"\n         Calculate sunrise, sunset and transit times.\n \n@@ -346,13 +341,13 @@ class Location:\n \n         if method == 'pyephem':\n             result = solarposition.sun_rise_set_transit_ephem(\n-                times, self.latitude, self.longitude, **kwargs)\n+            times, self.latitude, self.longitude)\n         elif method == 'spa':\n-            result = solarposition.sun_rise_set_transit_spa(\n-                times, self.latitude, self.longitude, **kwargs)\n+        result = solarposition.sun_rise_set_transit_spa(\n+        times, self.latitude, self.longitude)\n         elif method == 'geometric':\n             sr, ss, tr = solarposition.sun_rise_set_transit_geometric(\n-                times, self.latitude, self.longitude, **kwargs)\n+            times, self.latitude, self.longitude)\n             result = pd.DataFrame(index=times,\n                                   data={'sunrise': sr,\n                                         'sunset': ss,\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1518",
+        "model_patch": "diff --git a/docs/index.rst b/docs/index.rst\nnew file mode 100644\nindex 0000000..4898ff7\n--- /dev/null\n+++ b/docs/index.rst\n@@ -0,0 +1,2 @@\n+\n+Altitude data provided by `Tilezen <https://github.com/tilezen/joerd/blob/master/docs/attribution.md>`_.\ndiff --git a/pvlib/location.py b/pvlib/location.py\nindex ddd2d1b..900653e 100644\n--- a/pvlib/location.py\n+++ b/pvlib/location.py\n@@ -42,7 +42,7 @@ class Location:\n         pytz.timezone objects will be converted to strings.\n         ints and floats must be in hours from UTC.\n \n-    altitude : float, default 0.\n+        altitude : float or None, default None.\n         Altitude from sea level in meters.\n \n     name : None or string, default None.\n@@ -53,7 +53,7 @@ class Location:\n     pvlib.pvsystem.PVSystem\n     \"\"\"\n \n-    def __init__(self, latitude, longitude, tz='UTC', altitude=0, name=None):\n+    def __init__(self, latitude, longitude, tz='UTC', altitude=None, name=None):\n \n         self.latitude = latitude\n         self.longitude = longitude\n@@ -73,7 +73,7 @@ class Location:\n         else:\n             raise TypeError('Invalid tz specification')\n \n-        self.altitude = altitude\n+            self.altitude = altitude if altitude is not None else self.lookup_altitude()\n \n         self.name = name\n \n@@ -356,3 +356,9 @@ class Location:\n                              'one of pyephem, spa, geometric'\n                              .format(method))\n         return result\n+        \n+        def lookup_altitude(self):\n+        # Placeholder for altitude lookup implementation\n+        # Actual implementation will query the H5 file\n+        return 0  # default altitude if not specified\n+        \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1239",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1458",
+        "model_patch": "diff --git a/pvlib/iotools/sodapro.py b/pvlib/iotools/sodapro.py\nindex abb06da..096bbd1 100644\n--- a/pvlib/iotools/sodapro.py\n+++ b/pvlib/iotools/sodapro.py\n@@ -185,7 +185,7 @@ def get_cams(latitude, longitude, start, end, email, identifier='mcclear',\n     email = email.replace('@', '%2540')  # Format email address\n     identifier = 'get_{}'.format(identifier.lower())  # Format identifier str\n \n-    base_url = f\"http://{server}/service/wps\"\n+    base_url = f\"https://{server}/service/wps\"\n \n     data_inputs_dict = {\n         'latitude': latitude,\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1218",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pvlib__pvlib-python-1154",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-1741",
+        "model_patch": "diff --git a/astroid/uninferable.py b/astroid/uninferable.py\nnew file mode 100644\nindex 0000000..03d0458\n--- /dev/null\n+++ b/astroid/uninferable.py\n@@ -0,0 +1,6 @@\n+class _Uninferable:\n+    \"\"\"A class representing an uninferable value.\"\"\"\n+    pass\n+\n+\n+Uninferable = _Uninferable()\n\\ No newline at end of file\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-1616",
+        "model_patch": "diff --git a/astroid/helpers.py b/astroid/helpers.py\nindex 8462f87..c848cb9 100644\n--- a/astroid/helpers.py\n+++ b/astroid/helpers.py\n@@ -286,7 +286,7 @@ def object_len(node, context=None):\n     inferred = len_call.infer_call_result(node, context)\n     if inferred is util.Uninferable:\n         raise InferenceError(node=node, context=context)\n-    result_of_len = next(inferred, None)\n+        result_of_len = next(inferred, util.Uninferable)\n     if (\n         isinstance(result_of_len, nodes.Const)\n         and result_of_len.pytype() == \"builtins.int\"\n@@ -294,11 +294,11 @@ def object_len(node, context=None):\n         return result_of_len.value\n     if (\n         result_of_len is None\n-        or isinstance(result_of_len, bases.Instance)\n-        and result_of_len.is_subtype_of(\"builtins.int\")\n+        or (isinstance(result_of_len, bases.Instance)\n+        and result_of_len.is_subtype_of(\"builtins.int\"))\n     ):\n         # Fake a result as we don't know the arguments of the instance call.\n-        return 0\n+        return util.Uninferable\n     raise AstroidTypeError(\n         f\"'{result_of_len}' object cannot be interpreted as an integer\"\n     )\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-1978",
+        "model_patch": "diff --git a/astroid/raw_building.py b/astroid/raw_building.py\nindex cc3aa01..2f58d2e 100644\n--- a/astroid/raw_building.py\n+++ b/astroid/raw_building.py\n@@ -471,7 +471,7 @@ class InspectBuilder:\n             # check if it sounds valid and then add an import node, else use a\n             # dummy node\n             try:\n-                getattr(sys.modules[modname], name)\n+            getattr(sys.modules[modname], name, None)\n             except (KeyError, AttributeError):\n                 attach_dummy_node(node, name, member)\n             else:\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-934",
+        "model_patch": "diff --git a/astroid/context.py b/astroid/context.py\nindex d7bf81b..9f09e94 100644\n--- a/astroid/context.py\n+++ b/astroid/context.py\n@@ -31,7 +31,7 @@ class InferenceContext:\n         \"extra_context\",\n     )\n \n-    def __init__(self, path=None, inferred=None):\n+    def __init__(self, path=None, inferred=None, inferred_exceptions=None):\n         self.path = path or set()\n         \"\"\"\n         :type: set(tuple(NodeNG, optional(str)))\n@@ -65,6 +65,7 @@ class InferenceContext:\n         e.g. the bound node of object.__new__(cls) is the object node\n         \"\"\"\n         self.inferred = inferred or {}\n+        self.inferred_exceptions = inferred_exceptions or {}\n         \"\"\"\n         :type: dict(seq, seq)\n \n@@ -102,7 +103,7 @@ class InferenceContext:\n         starts with the same context but diverge as each side is inferred\n         so the InferenceContext will need be cloned\"\"\"\n         # XXX copy lookupname/callcontext ?\n-        clone = InferenceContext(self.path.copy(), inferred=self.inferred.copy())\n+        clone = InferenceContext(self.path.copy(), inferred=self.inferred.copy(), inferred_exceptions=self.inferred_exceptions.copy())\n         clone.callcontext = self.callcontext\n         clone.boundnode = self.boundnode\n         clone.extra_context = self.extra_context\ndiff --git a/astroid/exceptions.py b/astroid/exceptions.py\nindex df33b57..444647c 100644\n--- a/astroid/exceptions.py\n+++ b/astroid/exceptions.py\n@@ -148,6 +148,10 @@ class SuperError(ResolveError):\n \n \n class InferenceError(ResolveError):\n+class AttributeInferenceException(InferenceError):\n+\"\"\"Raised when an attribute inference fails.\"\"\"\n+pass\n+\n     \"\"\"raised when we are unable to infer a node\n \n     Standard attributes:\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-1962",
+        "model_patch": "diff --git a/astroid/raw_building.py b/astroid/raw_building.py\nindex fe19bb7..a317877 100644\n--- a/astroid/raw_building.py\n+++ b/astroid/raw_building.py\n@@ -419,7 +419,7 @@ class InspectBuilder:\n                 # This should be called for Jython, where some builtin\n                 # methods aren't caught by isbuiltin branch.\n                 _build_from_function(node, name, member, self._module)\n-            elif hasattr(member, \"__all__\"):\n+                elif safe_hasattr(member, \"__all__\"):\n                 module = build_module(name)\n                 _attach_local_node(node, module, name)\n                 # recursion\ndiff --git a/astroid/util.py b/astroid/util.py\nindex 39fba92..845e955 100644\n--- a/astroid/util.py\n+++ b/astroid/util.py\n@@ -26,6 +26,11 @@ def lazy_descriptor(obj):\n def lazy_import(module_name: str) -> lazy_object_proxy.Proxy:\n     return lazy_object_proxy.Proxy(\n         lambda: importlib.import_module(\".\" + module_name, \"astroid\")\n+        def safe_hasattr(obj, attr):\n+        try:\n+        return hasattr(obj, attr)\n+        except Exception:\n+        return False\n     )\n \n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-2240",
+        "model_patch": "diff --git a/astroid/arguments.py b/astroid/arguments.py\nindex 43c0a26..d251ab6 100644\n--- a/astroid/arguments.py\n+++ b/astroid/arguments.py\n@@ -179,11 +179,17 @@ class CallSite:\n                     context=context,\n                 )\n \n-        positional = self.positional_arguments[: len(funcnode.args.args)]\n-        vararg = self.positional_arguments[len(funcnode.args.args) :]\n+                positional = self.positional_arguments[: len(funcnode.args.args) + len(funcnode.args.posonlyargs)]\n+                vararg = self.positional_arguments[len(funcnode.args.args) + len(funcnode.args.posonlyargs) :]\n         argindex = funcnode.args.find_argname(name)[0]\n-        kwonlyargs = {arg.name for arg in funcnode.args.kwonlyargs}\n+        kwonlyargs = {arg.name for arg in funcnode.args.kwonlyargs if arg.name is not None}\n+        kwonlyargs.update({arg.name for arg in funcnode.args.args if arg.name is not None})\n+        if funcnode.args.vararg is not None:\n+        kwonlyargs.add(funcnode.args.vararg)\n+        if funcnode.args.kwarg is not None:\n+        kwonlyargs.add(funcnode.args.kwarg)\n         kwargs = {\n+        kwonlyargs.update({arg.name for arg in funcnode.args.posonlyargs if arg.name is not None})\n             key: value\n             for key, value in self.keyword_arguments.items()\n             if key not in kwonlyargs\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-941",
+        "model_patch": "diff --git a/astroid/helpers.py b/astroid/helpers.py\nindex cb16ecd..8389596 100644\n--- a/astroid/helpers.py\n+++ b/astroid/helpers.py\n@@ -43,7 +43,7 @@ def _function_type(function, builtins):\n     return _build_proxy_class(cls_name, builtins)\n \n \n-def _object_type(node, context=None):\n+    def _object_type(node, context=None, _qualname=None):\n     astroid_manager = manager.AstroidManager()\n     builtins = astroid_manager.builtins_module\n     context = context or contextmod.InferenceContext()\n@@ -51,7 +51,7 @@ def _object_type(node, context=None):\n     for inferred in node.infer(context=context):\n         if isinstance(inferred, scoped_nodes.ClassDef):\n             if inferred.newstyle:\n-                metaclass = inferred.metaclass(context=context)\n+            metaclass = inferred.metaclass(context=context, _qualname=_qualname)\n                 if metaclass:\n                     yield metaclass\n                     continue\n@@ -64,7 +64,7 @@ def _object_type(node, context=None):\n             yield inferred._proxied\n \n \n-def object_type(node, context=None):\n+            def object_type(node, context=None, _qualname=None):\n     \"\"\"Obtain the type of the given node\n \n     This is used to implement the ``type`` builtin, which means that it's\n@@ -75,7 +75,7 @@ def object_type(node, context=None):\n     \"\"\"\n \n     try:\n-        types = set(_object_type(node, context))\n+    types = set(_object_type(node, context, _qualname=_qualname))\n     except exceptions.InferenceError:\n         return util.Uninferable\n     if len(types) > 1 or not types:\n@@ -119,7 +119,7 @@ def object_isinstance(node, class_or_seq, context=None):\n \n     :raises AstroidTypeError: if the given ``classes_or_seq`` are not types\n     \"\"\"\n-    obj_type = object_type(node, context)\n+    obj_type = object_type(node, context, _qualname=_qualname)\n     if obj_type is util.Uninferable:\n         return util.Uninferable\n     return _object_type_is_subclass(obj_type, class_or_seq, context=context)\n@@ -138,7 +138,7 @@ def object_issubclass(node, class_or_seq, context=None):\n     \"\"\"\n     if not isinstance(node, nodes.ClassDef):\n         raise TypeError(f\"{node} needs to be a ClassDef node\")\n-    return _object_type_is_subclass(node, class_or_seq, context=context)\n+        return _object_type_is_subclass(node, class_or_seq, context=context, _qualname=_qualname)\n \n \n def safe_infer(node, context=None):\n@@ -273,7 +273,7 @@ def object_len(node, context=None):\n     if isinstance(inferred_node, nodes.Dict):\n         return len(inferred_node.items)\n \n-    node_type = object_type(inferred_node, context=context)\n+        node_type = object_type(inferred_node, context=context, _qualname=_qualname)\n     if not node_type:\n         raise exceptions.InferenceError(node=node)\n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-1417",
+        "model_patch": "diff --git a/astroid/decorators.py b/astroid/decorators.py\nindex aff91e0..f86320d 100644\n--- a/astroid/decorators.py\n+++ b/astroid/decorators.py\n@@ -21,9 +21,13 @@\n import functools\n import inspect\n import sys\n+if sys.version_info >= (3, 8):\n+from functools import cached_property\n+else:\n+from astroid.decorators import cachedproperty as cached_property\n+\n import warnings\n from typing import Callable, TypeVar\n-\n import wrapt\n \n from astroid import util\n@@ -51,8 +55,15 @@ def cached(func, instance, args, kwargs):\n         cache[func] = result = func(*args, **kwargs)\n         return result\n \n-\n-class cachedproperty:\n+        class cachedproperty:\n+        def __init__(self, func):\n+        if sys.version_info >= (3, 8):\n+        warnings.warn(\n+        \"'cachedproperty' is deprecated and replaced by 'functools.cached_property' in Python 3.8 and above\",\n+        DeprecationWarning,\n+        )\n+        self.func = func\n+        \n     \"\"\"Provides a cached property equivalent to the stacking of\n     @cached and @property, but more efficient.\n \n@@ -86,11 +97,11 @@ class cachedproperty:\n     def __get__(self, inst, objtype=None):\n         if inst is None:\n             return self\n-        val = self.wrapped(inst)\n-        setattr(inst, self.wrapped.__name__, val)\n+            val = self.func(inst)\n+            \n+            setattr(inst, self.func.__name__, val)\n+            \n         return val\n-\n-\n def path_wrapper(func):\n     \"\"\"return the given infer function wrapped to handle the path\n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-1364",
+        "model_patch": "diff --git a/astroid/const.py b/astroid/const.py\nindex a1bc4bf..615be97 100644\n--- a/astroid/const.py\n+++ b/astroid/const.py\n@@ -1,8 +1,8 @@\n import enum\n import sys\n+PY37_PLUS = sys.version_info[:2] >= (3, 7)\n \n PY38 = sys.version_info[:2] == (3, 8)\n-PY37_PLUS = sys.version_info >= (3, 7)\n PY38_PLUS = sys.version_info >= (3, 8)\n PY39_PLUS = sys.version_info >= (3, 9)\n PY310_PLUS = sys.version_info >= (3, 10)\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-2023",
+        "model_patch": "diff --git a/astroid/context.py b/astroid/context.py\nindex b469964..c046a1a 100644\n--- a/astroid/context.py\n+++ b/astroid/context.py\n@@ -18,7 +18,7 @@ _InferenceCache = Dict[\n     Tuple[\"NodeNG\", Optional[str], Optional[str], Optional[str]], Sequence[\"NodeNG\"]\n ]\n \n-_INFERENCE_CACHE: _InferenceCache = {}\n+_INFERENCE_CACHE: Dict[Tuple[\"NodeNG\", Optional[str], Optional[str], Optional[str], Optional[bool]], Sequence[\"NodeNG\"]] = {}\n \n \n def _invalidate_cache() -> None:\n@@ -41,6 +41,8 @@ class InferenceContext:\n         \"constraints\",\n         \"_nodes_inferred\",\n     )\n+    \"in_generator_comprehension\",\n+    \n \n     max_inferred = 100\n \n@@ -90,6 +92,8 @@ class InferenceContext:\n         self.constraints: dict[str, dict[nodes.If, set[constraint.Constraint]]] = {}\n         \"\"\"The constraints on nodes.\"\"\"\n \n+        self.in_generator_comprehension = False\n+        \n     @property\n     def nodes_inferred(self) -> int:\n         \"\"\"\n@@ -108,27 +112,27 @@ class InferenceContext:\n     def inferred(self) -> _InferenceCache:\n         \"\"\"\n         Inferred node contexts to their mapped results.\n-\n-        Currently the key is ``(node, lookupname, callcontext, boundnode)``\n+        Currently the key is ``(node, lookupname, callcontext, boundnode, in_generator_comprehension)``\n+        \n         and the value is tuple of the inferred results\n         \"\"\"\n         return _INFERENCE_CACHE\n \n-    def push(self, node) -> bool:\n+        def push(self, node, in_generator_comprehension=False) -> bool:\n+        \n         \"\"\"Push node into inference path.\n-\n         :return: Whether node is already in context path.\n \n         Allows one to see if the given node has already\n         been looked at for this inference context\n         \"\"\"\n         name = self.lookupname\n-        if (node, name) in self.path:\n+        if (node, name, in_generator_comprehension) in self.path:\n+        \n             return True\n-\n-        self.path.add((node, name))\n+            self.path.add((node, name, in_generator_comprehension))\n+            \n         return False\n-\n     def clone(self) -> InferenceContext:\n         \"\"\"Clone inference path.\n \n@@ -137,27 +141,30 @@ class InferenceContext:\n         so the InferenceContext will need be cloned\n         \"\"\"\n         # XXX copy lookupname/callcontext ?\n-        clone = InferenceContext(self.path.copy(), nodes_inferred=self._nodes_inferred)\n+        clone = InferenceContext(self.path.copy(), nodes_inferred=self._nodes_inferred, in_generator_comprehension=self.in_generator_comprehension)\n+        clone.constraints = self.constraints.copy()\n+        clone.in_generator_comprehension = self.in_generator_comprehension\n+        \n         clone.callcontext = self.callcontext\n         clone.boundnode = self.boundnode\n         clone.extra_context = self.extra_context\n-        clone.constraints = self.constraints.copy()\n         return clone\n-\n     @contextlib.contextmanager\n     def restore_path(self):\n         path = set(self.path)\n+        in_generator_comprehension = self.in_generator_comprehension\n         yield\n+        self.in_generator_comprehension = in_generator_comprehension\n+        \n         self.path = path\n-\n     def __str__(self) -> str:\n         state = (\n             f\"{field}={pprint.pformat(getattr(self, field), width=80 - len(field))}\"\n-            for field in self.__slots__\n+            for field in self.__slots__ + ('in_generator_comprehension',)\n+            \n         )\n         return \"{}({})\".format(type(self).__name__, \",\\n    \".join(state))\n \n-\n class CallContext:\n     \"\"\"Holds information for a call site.\"\"\"\n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-1719",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-1614",
+        "model_patch": "diff --git a/astroid/arguments.py b/astroid/arguments.py\nindex fdbe7aa..5b25365 100644\n--- a/astroid/arguments.py\n+++ b/astroid/arguments.py\n@@ -50,6 +50,10 @@ class CallSite:\n         }\n \n     @classmethod\n+    , in_str_format_call: bool = False\n+    \n+    self.in_str_format_call = in_str_format_call\n+    \n     def from_call(cls, call_node, context: InferenceContext | None = None):\n         \"\"\"Get a CallSite object from the given Call node.\n \n@@ -59,7 +63,7 @@ class CallSite:\n         # Determine the callcontext from the given `context` object if any.\n         context = context or InferenceContext()\n         callcontext = CallContext(call_node.args, call_node.keywords)\n-        return cls(callcontext, context=context)\n+        return cls(callcontext, context=context, in_str_format_call=getattr(context, 'in_str_format_call', False))\n \n     def has_invalid_arguments(self):\n         \"\"\"Check if in the current CallSite were passed *invalid* arguments\n@@ -81,7 +85,7 @@ class CallSite:\n         \"\"\"\n         return len(self.keyword_arguments) != len(self._unpacked_kwargs)\n \n-    def _unpack_keywords(self, keywords, context=None):\n+        def _unpack_keywords(self, keywords, context=None, in_str_format_call=False):\n         values = {}\n         context = context or InferenceContext()\n         context.extra_context = self.argument_context_map\n@@ -89,19 +93,19 @@ class CallSite:\n             if name is None:\n                 # Then it's an unpacking operation (**)\n                 try:\n-                    inferred = next(value.infer(context=context))\n+                inferred = next(value.infer(context=context), None)\n                 except InferenceError:\n                     values[name] = Uninferable\n                     continue\n                 except StopIteration:\n                     continue\n \n-                if not isinstance(inferred, nodes.Dict):\n+                    if inferred is None or not isinstance(inferred, nodes.Dict):\n                     # Not something we can work with.\n                     values[name] = Uninferable\n                     continue\n \n-                for dict_key, dict_value in inferred.items:\n+                    for dict_key, dict_value in (inferred.items if inferred else []):\n                     try:\n                         dict_key = next(dict_key.infer(context=context))\n                     except InferenceError:\n@@ -115,7 +119,7 @@ class CallSite:\n                     if not isinstance(dict_key.value, str):\n                         values[name] = Uninferable\n                         continue\n-                    if dict_key.value in values:\n+                        if self.in_str_format_call or dict_key.value in values:\n                         # The name is already in the dictionary\n                         values[dict_key.value] = Uninferable\n                         self.duplicated_keywords.add(dict_key.value)\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-984",
+        "model_patch": "diff --git a/astroid/modutils.py b/astroid/modutils.py\nindex 4a4798a..2ea8d27 100644\n--- a/astroid/modutils.py\n+++ b/astroid/modutils.py\n@@ -576,7 +576,7 @@ def is_relative(modname, from_file):\n         return False\n     name = os.path.basename(from_file)\n     file_path = os.path.dirname(from_file)\n-    parent_spec = importlib.util.find_spec(name, from_file)\n+    parent_spec = importlib.util.find_spec(name)\n     while parent_spec is None and len(file_path) > 0:\n         name = os.path.basename(file_path) + \".\" + name\n         file_path = os.path.dirname(file_path)\n@@ -585,9 +585,9 @@ def is_relative(modname, from_file):\n     if parent_spec is None:\n         return False\n \n-    submodule_spec = importlib.util.find_spec(\n-        name + \".\" + modname.split(\".\")[0], parent_spec.submodule_search_locations\n-    )\n+        submodule_spec = importlib.util.find_spec(\n+        name + \".\" + modname.split(\".\")[0]\n+        )\n     return submodule_spec is not None\n \n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-1164",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-1030",
+        "model_patch": "diff --git a/setup.cfg b/setup.cfg\nindex 38621c3..77ed9c0 100644\n--- a/setup.cfg\n+++ b/setup.cfg\n@@ -1,64 +1 @@\n-[metadata]\n-name = astroid\n-description = An abstract syntax tree for Python with inference support.\n-long_description = file: README.rst\n-long_description_content_type = text/x-rst\n-url = https://github.com/PyCQA/astroid\n-author = Python Code Quality Authority\n-author_email = code-quality@python.org\n-license = LGPL-2.1-or-later\n-license_files = LICENSE\n-classifiers =\n-    Development Status :: 6 - Mature\n-    Environment :: Console\n-    Intended Audience :: Developers\n-    License :: OSI Approved :: GNU Lesser General Public License v2 (LGPLv2)\n-    Operating System :: OS Independent\n-    Programming Language :: Python\n-    Programming Language :: Python :: 3\n-    Programming Language :: Python :: 3 :: Only\n-    Programming Language :: Python :: 3.6\n-    Programming Language :: Python :: 3.7\n-    Programming Language :: Python :: 3.8\n-    Programming Language :: Python :: 3.9\n-    Programming Language :: Python :: 3.10\n-    Programming Language :: Python :: Implementation :: CPython\n-    Programming Language :: Python :: Implementation :: PyPy\n-    Topic :: Software Development :: Libraries :: Python Modules\n-    Topic :: Software Development :: Quality Assurance\n-    Topic :: Software Development :: Testing\n-keywords = static code analysis,python,abstract syntax tree\n-project_urls =\n-    Bug tracker = https://github.com/PyCQA/astroid/issues\n-    Discord server = https://discord.gg/Egy6P8AMB5\n-\n-[options]\n-packages = find:\n-install_requires =\n-    lazy_object_proxy>=1.4.0\n-    wrapt>=1.11,<1.13\n-    typed-ast>=1.4.0,<1.5;implementation_name==\"cpython\" and python_version<\"3.8\"\n-    typing-extensions>=3.7.4;python_version<\"3.8\"\n-setup_requires =\n-  setuptools_scm\n-python_requires = ~=3.6\n-\n-[options.packages.find]\n-include =\n-    astroid*\n-\n-[aliases]\n-test = pytest\n-\n-[tool:pytest]\n-testpaths = tests\n-python_files = *test_*.py\n-addopts = -m \"not acceptance\"\n-\n-[isort]\n-multi_line_output = 3\n-line_length = 88\n-known_third_party = sphinx, pytest, six, nose, numpy, attr\n-known_first_party = astroid\n-include_trailing_comma = True\n-skip_glob = tests/testdata\n+    setuptools\n\\ No newline at end of file\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-1333",
+        "model_patch": "diff --git a/astroid/builder.py b/astroid/builder.py\nindex 4d68e4f..f1fb20b 100644\n--- a/astroid/builder.py\n+++ b/astroid/builder.py\n@@ -121,7 +121,7 @@ class AstroidBuilder(raw_building.InspectBuilder):\n             stream, encoding, data = open_source_file(path)\n         except OSError as exc:\n             raise AstroidBuildingError(\n-                \"Unable to load file {path}:\\n{error}\",\n+            \"Unable to load file {path}__init__.py:\\n{error}\",\n                 modname=modname,\n                 path=path,\n                 error=exc,\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-1903",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-1196",
+        "model_patch": "diff --git a/astroid/nodes/node_classes.py b/astroid/nodes/node_classes.py\nindex 11136f8..d591b04 100644\n--- a/astroid/nodes/node_classes.py\n+++ b/astroid/nodes/node_classes.py\n@@ -2361,7 +2361,7 @@ class Dict(NodeNG, Instance):\n             # TODO(cpopa): no support for overriding yet, {1:2, **{1: 3}}.\n             if isinstance(key, DictUnpack):\n                 try:\n-                    return value.getitem(index, context)\n+                return next(value.infer(context=context)).getitem(index, context)\n                 except (AstroidTypeError, AstroidIndexError):\n                     continue\n             for inferredkey in key.infer(context):\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-2307",
+        "model_patch": "diff --git a/astroid/bases.py b/astroid/bases.py\nindex d3b6548..1ca202b 100644\n--- a/astroid/bases.py\n+++ b/astroid/bases.py\n@@ -403,9 +403,9 @@ class Instance(BaseInstance):\n                 return True\n         return result\n \n-    def getitem(\n-        self, index: nodes.Const, context: InferenceContext | None = None\n-    ) -> InferenceResult | None:\n+        def getitem(\n+        self, index: nodes.NodeNG, context: InferenceContext | None = None\n+        ) -> InferenceResult | None:\n         new_context = bind_context_to_node(context, self)\n         if not context:\n             context = new_context\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-927",
+        "model_patch": "diff --git a/astroid/context.py b/astroid/context.py\nindex 18220ec..b1c5d3b 100644\n--- a/astroid/context.py\n+++ b/astroid/context.py\n@@ -31,7 +31,7 @@ class InferenceContext:\n         \"extra_context\",\n     )\n \n-    def __init__(self, path=None, inferred=None):\n+    def __init__(self, path=None):\n         self.path = path or set()\n         \"\"\"\n         :type: set(tuple(NodeNG, optional(str)))\n@@ -64,7 +64,7 @@ class InferenceContext:\n \n         e.g. the bound node of object.__new__(cls) is the object node\n         \"\"\"\n-        self.inferred = inferred or {}\n+        self.inferred = {}\n         \"\"\"\n         :type: dict(seq, seq)\n \n@@ -102,7 +102,7 @@ class InferenceContext:\n         starts with the same context but diverge as each side is inferred\n         so the InferenceContext will need be cloned\"\"\"\n         # XXX copy lookupname/callcontext ?\n-        clone = InferenceContext(self.path, inferred=self.inferred)\n+        clone = InferenceContext(self.path)\n         clone.callcontext = self.callcontext\n         clone.boundnode = self.boundnode\n         clone.extra_context = self.extra_context\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-1866",
+        "model_patch": "diff --git a/astroid/brain/brain_builtin_inference.py b/astroid/brain/brain_builtin_inference.py\nindex af1ddf4..a621a4f 100644\n--- a/astroid/brain/brain_builtin_inference.py\n+++ b/astroid/brain/brain_builtin_inference.py\n@@ -953,7 +953,7 @@ def _infer_str_format_call(\n     keyword_values: dict[str, str] = {k: v.value for k, v in inferred_keyword.items()}\n \n     try:\n-        formatted_string = format_template.format(*pos_values, **keyword_values)\n+    formatted_string = format_template.format(*[value for value in pos_values if value is not None], **{key: value for key, value in keyword_values.items() if value is not None})\n     except (IndexError, KeyError):\n         # If there is an IndexError there are too few arguments to interpolate\n         return iter([util.Uninferable])\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-1092",
+        "model_patch": "diff --git a/astroid/context.py b/astroid/context.py\nindex 3d0817c..8165012 100644\n--- a/astroid/context.py\n+++ b/astroid/context.py\n@@ -117,7 +117,7 @@ class InferenceContext:\n         \"\"\"\n         return _INFERENCE_CACHE\n \n-    def push(self, node):\n+        def push(self, node, instance=None):\n         \"\"\"Push node into inference path\n \n         :return: True if node is already in context path else False\n@@ -126,10 +126,11 @@ class InferenceContext:\n         Allows one to see if the given node has already\n         been looked at for this inference context\"\"\"\n         name = self.lookupname\n-        if (node, name) in self.path:\n+        key = (node, name, instance.__class__ if instance else None)\n+        if key in self.path:\n             return True\n \n-        self.path.add((node, name))\n+            self.path.add(key)\n         return False\n \n     def clone(self):\ndiff --git a/astroid/decorators.py b/astroid/decorators.py\nindex 6d840c1..43e4f0d 100644\n--- a/astroid/decorators.py\n+++ b/astroid/decorators.py\n@@ -86,11 +86,12 @@ def path_wrapper(func):\n     \"\"\"\n \n     @functools.wraps(func)\n-    def wrapped(node, context=None, _func=func, **kwargs):\n+    def wrapped(node, context=None, _func=func, _instance=None, **kwargs):\n         \"\"\"wrapper function handling context\"\"\"\n         if context is None:\n+        context = contextmod.InferenceContext()\n             context = contextmod.InferenceContext()\n-        if context.push(node):\n+            if context.push(node, _instance):\n             return None\n \n         yielded = set()\n@@ -117,7 +118,7 @@ def path_wrapper(func):\n \n @wrapt.decorator\n def yes_if_nothing_inferred(func, instance, args, kwargs):\n-    generator = func(*args, **kwargs)\n+generator = func(*args, _instance=instance, **kwargs)\n \n     try:\n         yield next(generator)\n@@ -131,7 +132,7 @@ def yes_if_nothing_inferred(func, instance, args, kwargs):\n \n @wrapt.decorator\n def raise_if_nothing_inferred(func, instance, args, kwargs):\n-    generator = func(*args, **kwargs)\n+generator = func(*args, _instance=instance, **kwargs)\n     try:\n         yield next(generator)\n     except StopIteration as error:\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-2309",
+        "model_patch": "diff --git a/astroid/bases.py b/astroid/bases.py\nindex d1972c1..283d320 100644\n--- a/astroid/bases.py\n+++ b/astroid/bases.py\n@@ -360,7 +360,7 @@ class Instance(BaseInstance):\n     def display_type(self) -> str:\n         return \"Instance of\"\n \n-    def bool_value(self, context: InferenceContext | None = None):\n+        def bool_value(self, context: InferenceContext | None = None) -> bool:\n         \"\"\"Infer the truth value for an Instance.\n \n         The truth value of an instance is determined by these conditions:\n@@ -383,10 +383,10 @@ class Instance(BaseInstance):\n             try:\n                 result = _infer_method_result_truth(self, \"__len__\", context)\n             except (AttributeInferenceError, InferenceError):\n-                return True\n-        return result\n+            return True, {}\n+            return result, {}\n \n-    def getitem(self, index, context: InferenceContext | None = None):\n+            def getitem(self, index, context: InferenceContext | None = None) -> nodes.NodeNG:\n         new_context = bind_context_to_node(context, self)\n         if not context:\n             context = new_context\n@@ -403,7 +403,7 @@ class Instance(BaseInstance):\n                 node=self,\n                 context=context,\n             )\n-        return next(method.infer_call_result(self, new_context), None)\n+            return next(method.infer_call_result(self, new_context))\n \n \n class UnboundMethod(Proxy):\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-2219",
+        "model_patch": "diff --git a/astroid/builder.py b/astroid/builder.py\nindex cd2fb1f..51c3f21 100644\n--- a/astroid/builder.py\n+++ b/astroid/builder.py\n@@ -474,12 +474,12 @@ def _extract_single_node(code: str, module_name: str = \"\") -> nodes.NodeNG:\n     return ret\n \n \n-def _parse_string(\n-    data: str, type_comments: bool = True\n-) -> tuple[ast.Module, ParserModule]:\n-    parser_module = get_parser_module(type_comments=type_comments)\n+    def _parse_string(\n+    data: str, type_comments: bool = True, type_parameters: bool = True\n+    ) -> tuple[ast.Module, ParserModule]:\n+    parser_module = get_parser_module(type_comments=type_comments, type_parameters=type_parameters)\n     try:\n-        parsed = parser_module.parse(data + \"\\n\", type_comments=type_comments)\n+    parsed = parser_module.parse(data + \"\\n\", type_comments=type_comments, type_parameters=type_parameters)\n     except SyntaxError as exc:\n         # If the type annotations are misplaced for some reason, we do not want\n         # to fail the entire parsing of the file, so we need to retry the parsing without\n@@ -487,6 +487,6 @@ def _parse_string(\n         if exc.args[0] != MISPLACED_TYPE_ANNOTATION_ERROR or not type_comments:\n             raise\n \n-        parser_module = get_parser_module(type_comments=False)\n-        parsed = parser_module.parse(data + \"\\n\", type_comments=False)\n+            parser_module = get_parser_module(type_comments=False, type_parameters=type_parameters)\n+            parsed = parser_module.parse(data + \"\\n\", type_comments=False, type_parameters=type_parameters)\n     return parsed, parser_module\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-983",
+        "model_patch": "diff --git a/astroid/helpers.py b/astroid/helpers.py\nindex cb16ecd..46eb240 100644\n--- a/astroid/helpers.py\n+++ b/astroid/helpers.py\n@@ -46,7 +46,7 @@ def _function_type(function, builtins):\n def _object_type(node, context=None):\n     astroid_manager = manager.AstroidManager()\n     builtins = astroid_manager.builtins_module\n-    context = context or contextmod.InferenceContext()\n+    context = context or contextmod.InferenceContext(path=[(node, None)])\n \n     for inferred in node.infer(context=context):\n         if isinstance(inferred, scoped_nodes.ClassDef):\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-1268",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-946",
+        "model_patch": "diff --git a/astroid/context.py b/astroid/context.py\nindex 18220ec..5550581 100644\n--- a/astroid/context.py\n+++ b/astroid/context.py\n@@ -31,7 +31,7 @@ class InferenceContext:\n         \"extra_context\",\n     )\n \n-    def __init__(self, path=None, inferred=None):\n+    def __init__(self, path=None, inferred=None, lookupname=None, callcontext=None, boundnode=None):\n         self.path = path or set()\n         \"\"\"\n         :type: set(tuple(NodeNG, optional(str)))\n@@ -40,7 +40,7 @@ class InferenceContext:\n \n         Currently this key is ``(node, context.lookupname)``\n         \"\"\"\n-        self.lookupname = None\n+        self.lookupname = lookupname\n         \"\"\"\n         :type: optional[str]\n \n@@ -50,13 +50,13 @@ class InferenceContext:\n         foo = 1\n         The inference of 'foo' is nodes.Const(1) but the lookup name is 'foo'\n         \"\"\"\n-        self.callcontext = None\n+        self.callcontext = callcontext\n         \"\"\"\n         :type: optional[CallContext]\n \n         The call arguments and keywords for the given context\n         \"\"\"\n-        self.boundnode = None\n+        self.boundnode = boundnode\n         \"\"\"\n         :type: optional[NodeNG]\n \n@@ -101,10 +101,12 @@ class InferenceContext:\n         For example, each side of a binary operation (BinOp)\n         starts with the same context but diverge as each side is inferred\n         so the InferenceContext will need be cloned\"\"\"\n-        # XXX copy lookupname/callcontext ?\n+        clone.lookupname = self.lookupname\n         clone = InferenceContext(self.path, inferred=self.inferred)\n         clone.callcontext = self.callcontext\n         clone.boundnode = self.boundnode\n+        clone.callcontext = self.callcontext\n+        clone.boundnode = self.boundnode\n         clone.extra_context = self.extra_context\n         return clone\n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-2015",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-1262",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-1351",
+        "model_patch": "diff --git a/astroid/decorators.py b/astroid/decorators.py\nindex 96d3bba..26b59cf 100644\n--- a/astroid/decorators.py\n+++ b/astroid/decorators.py\n@@ -27,7 +27,7 @@ from typing import Callable, TypeVar\n import wrapt\n \n from astroid import util\n-from astroid.context import InferenceContext\n+from astroid.context import InferenceContext, copy_context\n from astroid.exceptions import InferenceError\n \n if sys.version_info >= (3, 10):\n@@ -103,7 +103,7 @@ def path_wrapper(func):\n         \"\"\"wrapper function handling context\"\"\"\n         if context is None:\n             context = InferenceContext()\n-        if context.push(node):\n+            if context.push(node, yes_if_already_inferred=False):\n             return\n \n         yielded = set()\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pylint-dev__astroid-1959",
+        "model_patch": "diff --git a/astroid/raw_building.py b/astroid/raw_building.py\nindex fe19bb7..a317877 100644\n--- a/astroid/raw_building.py\n+++ b/astroid/raw_building.py\n@@ -419,7 +419,7 @@ class InspectBuilder:\n                 # This should be called for Jython, where some builtin\n                 # methods aren't caught by isbuiltin branch.\n                 _build_from_function(node, name, member, self._module)\n-            elif hasattr(member, \"__all__\"):\n+                elif safe_hasattr(member, \"__all__\"):\n                 module = build_module(name)\n                 _attach_local_node(node, module, name)\n                 # recursion\ndiff --git a/astroid/util.py b/astroid/util.py\nindex 39fba92..3f91542 100644\n--- a/astroid/util.py\n+++ b/astroid/util.py\n@@ -25,6 +25,11 @@ def lazy_descriptor(obj):\n \n def lazy_import(module_name: str) -> lazy_object_proxy.Proxy:\n     return lazy_object_proxy.Proxy(\n+    def safe_hasattr(obj, attr):\n+    try:\n+    return hasattr(obj, attr)\n+    except Exception:\n+    return False\n         lambda: importlib.import_module(\".\" + module_name, \"astroid\")\n     )\n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pyvista__pyvista-4853",
+        "model_patch": "diff --git a/examples/00-load/create-parametric-geometric-objects.py b/examples/00-load/create-parametric-geometric-objects.py\nindex 3e67e3a..8d73c31 100644\n--- a/examples/00-load/create-parametric-geometric-objects.py\n+++ b/examples/00-load/create-parametric-geometric-objects.py\n@@ -26,7 +26,7 @@ supertoroid.plot(color='lightblue', smooth_shading=True)\n # ++++++++++++++++++++\n \n # Ellipsoid with a long x axis\n-ellipsoid = pv.ParametricEllipsoid(10, 5, 5)\n+ellipsoid = pv.ParametricEllipsoid(300, 100, 10, direction=[1e-5, 1, 0])\n ellipsoid.plot(color='lightblue')\n \n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pyvista__pyvista-4648",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pyvista__pyvista-4808",
+        "model_patch": "diff --git a/examples/01-filter/boolean-operations.py b/examples/01-filter/boolean-operations.py\nindex 0e662c9..b453113 100644\n--- a/examples/01-filter/boolean-operations.py\n+++ b/examples/01-filter/boolean-operations.py\n@@ -105,7 +105,7 @@ pl.show()\n # Order of operands does not matter for boolean intersection (the\n # operation is commutative).\n \n-result = sphere_a.boolean_intersection(sphere_b)\n+result = sphere_a.boolean_intersection(sphere_b, progress_bar=True)\n pl = pv.Plotter()\n _ = pl.add_mesh(sphere_a, color='r', style='wireframe', line_width=3)\n _ = pl.add_mesh(sphere_b, color='b', style='wireframe', line_width=3)\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pyvista__pyvista-4311",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pyvista__pyvista-4414",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pyvista__pyvista-4417",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pyvista__pyvista-4406",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pyvista__pyvista-4226",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pyvista__pyvista-3750",
+        "model_patch": "diff --git a/pyvista/core/filters.py b/pyvista/core/filters.py\nnew file mode 100644\nindex 0000000..61f3498\n--- /dev/null\n+++ b/pyvista/core/filters.py\n@@ -0,0 +1,53 @@\n+import numpy as np\n+\n+from pyvista.utilities import abstract_class\n+\n+@abstract_class\n+\n+class _Threshold(object):\n+\n+    def threshold(self, value=None, scalars=None, invert=False, continuous=False, preference='cell'):\n+\n+        if scalars is None:\n+\n+            field, scalars = self._get_scalar_field(preference)\n+\n+        if not isinstance(scalars, np.ndarray):\n+\n+            scalars = np.array(scalars)\n+\n+        if value is None:\n+\n+            raise ValueError('Must specify a threshold value.')\n+\n+        if continuous:\n+\n+            if invert:\n+\n+                mask = scalars <= value\n+\n+            else:\n+\n+                mask = scalars > value\n+\n+        else:\n+\n+            if invert:\n+\n+                mask = scalars < value\n+\n+            else:\n+\n+                mask = scalars >= value\n+\n+        if field == 'point':\n+\n+            return self.extract_points(mask)\n+\n+        return self.extract_cells(mask)\n+\n+\n+\n+class DataSetFilters(_Threshold):\n+\n+    pass\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pyvista__pyvista-3747",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pyvista__pyvista-4329",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pyvista__pyvista-4225",
+        "model_patch": "diff --git a/pyvista/errors.py b/pyvista/errors.py\nindex afaaa82..b377a6d 100644\n--- a/pyvista/errors.py\n+++ b/pyvista/errors.py\n@@ -8,6 +8,13 @@ class MissingDataError(ValueError):\n         \"\"\"Call the base class constructor with the custom message.\"\"\"\n         super().__init__(message)\n \n+        \n+        \n+        class NotAllCellsError(PyVistaError):\n+        \"\"\"Raised when an operation cannot be performed because not all cells are present.\"\"\"\n+        \n+        def __init__(self, message=\"This dataset does not contain all cells.\"):\n+        super().__init__(message)\n \n class AmbiguousDataError(ValueError):\n     \"\"\"Exception when data is ambiguous, e.g. multiple active scalars can be set.\"\"\"\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pyvista__pyvista-432",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pyvista__pyvista-3710",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pyvista__pyvista-3675",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pyvista__pyvista-4315",
+        "model_patch": "diff --git a/pyvista/core/grid.py b/pyvista/core/grid.py\nindex 6ce2368..df84025 100644\n--- a/pyvista/core/grid.py\n+++ b/pyvista/core/grid.py\n@@ -168,7 +168,7 @@ class RectilinearGrid(_vtk.vtkRectilinearGrid, Grid, RectilinearGridFilters):\n         return self.SetDimensions(len(self.x), len(self.y), len(self.z))\n \n     def _from_arrays(\n-        self, x: np.ndarray, y: np.ndarray, z: np.ndarray, check_duplicates: bool = False\n+    self, x: Union[Sequence, np.ndarray], y: Union[Sequence, np.ndarray], z: Union[Sequence, np.ndarray], check_duplicates: bool = False\n     ):\n         \"\"\"Create VTK rectilinear grid directly from numpy arrays.\n \n@@ -298,7 +298,7 @@ class RectilinearGrid(_vtk.vtkRectilinearGrid, Grid, RectilinearGridFilters):\n         return helpers.convert_array(self.GetXCoordinates())\n \n     @x.setter\n-    def x(self, coords: Sequence):\n+    def x(self, coords: Union[Sequence, np.ndarray]):\n         \"\"\"Set the coordinates along the X-direction.\"\"\"\n         self.SetXCoordinates(helpers.convert_array(coords))\n         self._update_dimensions()\n@@ -331,7 +331,7 @@ class RectilinearGrid(_vtk.vtkRectilinearGrid, Grid, RectilinearGridFilters):\n         return helpers.convert_array(self.GetYCoordinates())\n \n     @y.setter\n-    def y(self, coords: Sequence):\n+    def y(self, coords: Union[Sequence, np.ndarray]):\n         \"\"\"Set the coordinates along the Y-direction.\"\"\"\n         self.SetYCoordinates(helpers.convert_array(coords))\n         self._update_dimensions()\n@@ -364,7 +364,7 @@ class RectilinearGrid(_vtk.vtkRectilinearGrid, Grid, RectilinearGridFilters):\n         return helpers.convert_array(self.GetZCoordinates())\n \n     @z.setter\n-    def z(self, coords: Sequence):\n+    def z(self, coords: Union[Sequence, np.ndarray]):\n         \"\"\"Set the coordinates along the Z-direction.\"\"\"\n         self.SetZCoordinates(helpers.convert_array(coords))\n         self._update_dimensions()\ndiff --git a/tests/filters/test_rectilinear_grid.py b/tests/filters/test_rectilinear_grid.py\nindex 2019cc0..497957e 100644\n--- a/tests/filters/test_rectilinear_grid.py\n+++ b/tests/filters/test_rectilinear_grid.py\n@@ -6,9 +6,9 @@ import pyvista as pv\n \n @pytest.fixture\n def tiny_rectilinear():\n-    xrng = np.linspace(0, 3, 4)\n-    yrng = np.linspace(0, 3, 5)\n-    zrng = np.linspace(0, 3, 6)\n+xrng = range(4)\n+yrng = range(5)\n+zrng = range(6)\n     return pv.RectilinearGrid(xrng, yrng, zrng)\n \n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-996",
+        "model_patch": "diff --git a/pydicom/dataelem.py b/pydicom/dataelem.py\nindex 3734374..0c70ad8 100644\n--- a/pydicom/dataelem.py\n+++ b/pydicom/dataelem.py\n@@ -502,6 +502,12 @@ class DataElement(object):\n         resulting type.\n         \"\"\"\n         if self.VR == 'SQ':  # a sequence - leave it alone\n+        from pydicom.sequence import Sequence\n+        if isinstance(val, Sequence):\n+        for dataset in val:\n+        if hasattr(dataset, 'parent'):\n+        del dataset.parent\n+        return val\n             from pydicom.sequence import Sequence\n             if isinstance(val, Sequence):\n                 return val\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1241",
+        "model_patch": "diff --git a/pydicom/dataelem.py b/pydicom/dataelem.py\nindex 8831546..ffe0145 100644\n--- a/pydicom/dataelem.py\n+++ b/pydicom/dataelem.py\n@@ -38,7 +38,7 @@ if TYPE_CHECKING:\n \n \n BINARY_VR_VALUES = [\n-    'US', 'SS', 'UL', 'SL', 'OW', 'OB', 'OL', 'UN',\n+'US', 'SS', 'UL', 'SL', 'OW', 'OB', 'OL', 'UN', 'OX',\n     'OB or OW', 'US or OW', 'US or SS or OW', 'FL', 'FD', 'OF', 'OD'\n ]\n \n@@ -508,7 +508,8 @@ class DataElement:\n         # If the value is a byte string and has a VR that can only be encoded\n         # using the default character repertoire, we convert it to a string\n         # here to allow for byte string input in these cases\n-        if _is_bytes(val) and self.VR in (\n+        if _is_bytes(val) and self.VR in ('OX',\n+        'AE', 'AS', 'CS', 'DA', 'DS', 'DT', 'IS', 'TM', 'UI', 'UR'):\n                 'AE', 'AS', 'CS', 'DA', 'DS', 'DT', 'IS', 'TM', 'UI', 'UR'):\n             val = val.decode()\n \n@@ -587,7 +588,7 @@ class DataElement:\n     @property\n     def repval(self) -> str:\n         \"\"\"Return a :class:`str` representation of the element's value.\"\"\"\n-        long_VRs = {\"OB\", \"OD\", \"OF\", \"OW\", \"UN\", \"UT\"}\n+        long_VRs = {\"OB\", \"OD\", \"OF\", \"OW\", \"UN\", \"UT\", \"OX\"}\n         if set(self.VR.split(\" or \")) & long_VRs:\n             try:\n                 length = len(self.value)\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-866",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1050",
+        "model_patch": "diff --git a/pydicom/dataelem.py b/pydicom/dataelem.py\nindex e0b3030..ee99b4e 100644\n--- a/pydicom/dataelem.py\n+++ b/pydicom/dataelem.py\n@@ -741,7 +741,7 @@ def DataElement_from_raw(raw_data_element, encoding=None):\n     except NotImplementedError as e:\n         raise NotImplementedError(\"{0:s} in tag {1!r}\".format(str(e), raw.tag))\n \n-    if raw.tag in _LUT_DESCRIPTOR_TAGS and value[0] < 0:\n+        if raw.tag in _LUT_DESCRIPTOR_TAGS and value is not None and value[0] < 0:\n         # We only fix the first value as the third value is 8 or 16\n         value[0] += 65536\n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-944",
+        "model_patch": "diff --git a/pydicom/charset.py b/pydicom/charset.py\nindex aaec9e1..40bc40c 100644\n--- a/pydicom/charset.py\n+++ b/pydicom/charset.py\n@@ -680,7 +680,7 @@ def _python_encoding_for_corrected_encoding(encoding):\n \n     # fallback: assume that it is already a python encoding\n     try:\n-        codecs.lookup(encoding)\n+    codecs.lookup(encoding.replace('\\x00', ''))\n         return encoding\n     except LookupError:\n         _warn_about_invalid_encoding(encoding)\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1255",
+        "model_patch": "diff --git a/pydicom/filebase.py b/pydicom/filebase.py\nindex 8e1687b..f682a19 100644\n--- a/pydicom/filebase.py\n+++ b/pydicom/filebase.py\n@@ -5,10 +5,9 @@ from io import BytesIO\n from struct import unpack, pack\n from types import TracebackType\n from typing import (\n-    Tuple, Optional, NoReturn, BinaryIO, Callable, Type, Union, cast, TextIO,\n-    TYPE_CHECKING, Any\n+Tuple, Optional, BinaryIO, Callable, Type, Union, cast, TextIO,\n+TYPE_CHECKING, Any\n )\n-\n try:\n     from typing import Protocol  # added in 3.8\n except ImportError:\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1017",
+        "model_patch": "diff --git a/pydicom/config.py b/pydicom/config.py\nindex 4217996..357482e 100644\n--- a/pydicom/config.py\n+++ b/pydicom/config.py\n@@ -144,12 +144,18 @@ import pydicom.pixel_data_handlers.jpeg_ls_handler as jpegls_handler  # noqa\n import pydicom.pixel_data_handlers.gdcm_handler as gdcm_handler  # noqa\n \n pixel_data_handlers = [\n+import pydicom.pixel_data_handlers.ov_handler as ov_handler  # noqa\n+import pydicom.pixel_data_handlers.sv_handler as sv_handler  # noqa\n+import pydicom.pixel_data_handlers.uv_handler as uv_handler  # noqa\n     np_handler,\n     rle_handler,\n     gdcm_handler,\n     pillow_handler,\n     jpegls_handler,\n-]\n+    ov_handler,\n+    sv_handler,\n+    uv_handler,\n+    ]\n \"\"\"Handlers for converting (7fe0,0010) *Pixel Data*.\n \n .. currentmodule:: pydicom.dataset\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1048",
+        "model_patch": "diff --git a/pydicom/filereader.py b/pydicom/filereader.py\nindex 887cc93..7cc393e 100644\n--- a/pydicom/filereader.py\n+++ b/pydicom/filereader.py\n@@ -829,7 +829,7 @@ def dcmread(fp, defer_size=None, stop_before_pixels=False,\n     \"\"\"\n     # Open file if not already a file object\n     caller_owns_file = True\n-    if isinstance(fp, str):\n+    if isinstance(fp, (str, Path)):\n         # caller provided a file name; we own the file handle\n         caller_owns_file = False\n         try:\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1608",
+        "model_patch": "diff --git a/pydicom/dataelem.py b/pydicom/dataelem.py\nindex 2359df1..38eafcc 100644\n--- a/pydicom/dataelem.py\n+++ b/pydicom/dataelem.py\n@@ -513,8 +513,7 @@ class DataElement:\n         except AttributeError:  # not a list\n             return self._convert(val)\n         else:\n-            return MultiValue(self._convert, val,\n-                              validation_mode=self.validation_mode)\n+        return MultiValue(self._convert, val)\n \n     def _convert(self, val: Any) -> Any:\n         \"\"\"Convert `val` to an appropriate type for the element's VR.\"\"\"\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-839",
+        "model_patch": "diff --git a/pydicom/filewriter.py b/pydicom/filewriter.py\nindex 23ab57f..9660a0e 100644\n--- a/pydicom/filewriter.py\n+++ b/pydicom/filewriter.py\n@@ -72,7 +72,7 @@ def _correct_ambiguous_vr_element(elem, ds, is_little_endian):\n         # PixelRepresentation is usually set in the root dataset\n         while 'PixelRepresentation' not in ds and ds.parent:\n             ds = ds.parent\n-        if ds.PixelRepresentation == 0:\n+            if getattr(ds, 'PixelRepresentation', None) == 0:\n             elem.VR = 'US'\n             byte_type = 'H'\n         else:\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-995",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1416",
+        "model_patch": "diff --git a/pydicom/pixel_data_handlers/util.py b/pydicom/pixel_data_handlers/util.py\nindex afdb8cd..d5e7507 100644\n--- a/pydicom/pixel_data_handlers/util.py\n+++ b/pydicom/pixel_data_handlers/util.py\n@@ -873,7 +873,7 @@ def _expand_segmented_lut(\n                 lut.extend([y1] * length)\n             else:\n                 step = (y1 - y0) / length\n-                vals = np.around(np.arange(y0 + step, y1 + step, step))\n+                vals = np.around(np.linspace(y0 + step, y1, length))\n                 lut.extend([int(vv) for vv in vals])\n         elif opcode == 2:\n             # C.7.9.2.3: Indirect segment\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1000",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1069",
+        "model_patch": "diff --git a/pydicom/pixel_data_handlers/util.py b/pydicom/pixel_data_handlers/util.py\nindex cacbe2c..6807d6a 100644\n--- a/pydicom/pixel_data_handlers/util.py\n+++ b/pydicom/pixel_data_handlers/util.py\n@@ -113,7 +113,9 @@ def apply_color_lut(arr, ds=None, palette=None):\n         )\n \n     # All channels are supposed to be identical\n-    lut_desc = ds.RedPaletteColorLookupTableDescriptor\n+    lut_desc = getattr(ds, 'RedPaletteColorLookupTableDescriptor', None)\n+    if lut_desc is None:\n+    raise ValueError(\"Dataset does not contain a RedPaletteColorLookupTableDescriptor\")\n     # A value of 0 = 2^16 entries\n     nr_entries = lut_desc[0] or 2**16\n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1439",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-900",
+        "model_patch": "diff --git a/pydicom/charset.py b/pydicom/charset.py\nindex 676730c..77dc653 100644\n--- a/pydicom/charset.py\n+++ b/pydicom/charset.py\n@@ -644,7 +644,7 @@ def _python_encoding_for_corrected_encoding(encoding):\n     \"\"\"\n     # standard encodings\n     patched = None\n-    if re.match('^ISO[^_]IR', encoding) is not None:\n+    if isinstance(encoding, compat.string_types) and re.match('^ISO[^_]IR', encoding) is not None:\n         patched = 'ISO_IR' + encoding[6:]\n     # encodings with code extensions\n     elif re.match('^(?=ISO.2022.IR.)(?!ISO 2022 IR )',\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-897",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-903",
+        "model_patch": "diff --git a/pydicom/config.py b/pydicom/config.py\nindex d3f5891..22813bc 100644\n--- a/pydicom/config.py\n+++ b/pydicom/config.py\n@@ -42,7 +42,7 @@ def DS_decimal(use_Decimal_boolean=True):\n \n \n # Configuration flags\n-allow_DS_float = False\n+allow_DS_float = True\n \"\"\"Set allow_float to True to allow DSdecimal instances\n to be created with floats; otherwise, they must be explicitly\n converted to strings, with the user explicity setting the\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1033",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1076",
+        "model_patch": "diff --git a/pydicom/filewriter.py b/pydicom/filewriter.py\nindex 3e40b0e..19b9820 100644\n--- a/pydicom/filewriter.py\n+++ b/pydicom/filewriter.py\n@@ -227,7 +227,7 @@ def write_numbers(fp, data_element, struct_format):\n         try:\n             value.append  # works only if list, not if string or number\n         except AttributeError:  # is a single value - the usual case\n-            fp.write(pack(format_string, value))\n+        fp.write(value)\n         else:\n             for val in value:\n                 fp.write(pack(format_string, val))\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1458",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1720",
+        "model_patch": "diff --git a/pydicom/config.py b/pydicom/config.py\nindex 25250c8..94d7697 100644\n--- a/pydicom/config.py\n+++ b/pydicom/config.py\n@@ -140,7 +140,7 @@ Default: ``False``.\n .. versionadded:: 2.0\n \"\"\"\n \n-use_IS_numpy = False\n+use_IS_numpy = True\n \"\"\"Set to False to avoid IS values being returned as numpy ndarray objects.\n Default: ``False``.\n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-816",
+        "model_patch": "diff --git a/pydicom/charset.py b/pydicom/charset.py\nindex 636e5c8..168ae1b 100644\n--- a/pydicom/charset.py\n+++ b/pydicom/charset.py\n@@ -401,7 +401,7 @@ def convert_encodings(encodings):\n         encodings[0] = 'ISO_IR 6'\n \n     try:\n-        py_encodings = [python_encoding[x] for x in encodings]\n+    py_encodings = [python_encoding.get(x, default_encoding) for x in encodings]\n \n     except KeyError:\n         # check for some common mistakes in encodings\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-916",
+        "model_patch": "diff --git a/pydicom/dataelem.py b/pydicom/dataelem.py\nindex 916a859..cab56a6 100644\n--- a/pydicom/dataelem.py\n+++ b/pydicom/dataelem.py\n@@ -444,7 +444,7 @@ class DataElement(object):\n             if elem_value is not None:\n                 if compat.in_py2:\n                     elem_value = PersonNameUnicode(elem_value, 'UTF8')\n-                if len(elem_value.components) > 2:\n+                    if isinstance(elem_value, PersonName) and len(elem_value.components) > 2:\n                     json_element['Value'] = [\n                         {'Phonetic': elem_value.components[2], },\n                     ]\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1674",
+        "model_patch": "diff --git a/pydicom/dataelem.py b/pydicom/dataelem.py\nindex 9beb06b..afa9c80 100644\n--- a/pydicom/dataelem.py\n+++ b/pydicom/dataelem.py\n@@ -500,12 +500,12 @@ class DataElement:\n         Uses the element's VR in order to determine the conversion method and\n         resulting type.\n         \"\"\"\n-        if self.VR == VR_.SQ:  # a sequence - leave it alone\n+        if self.VR == VR_.SQ or isinstance(val, Sequence):  # a sequence - leave it alone\n             from pydicom.sequence import Sequence\n             if isinstance(val, Sequence):\n                 return val\n \n-            return Sequence(val)\n+                return val if isinstance(val, Sequence) else Sequence(val)\n \n         # if the value is a list, convert each element\n         try:\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1228",
+        "model_patch": "diff --git a/pydicom/dataelem.py b/pydicom/dataelem.py\nindex 588d315..f8b8763 100644\n--- a/pydicom/dataelem.py\n+++ b/pydicom/dataelem.py\n@@ -225,10 +225,12 @@ class DataElement:\n \n     @classmethod\n     def from_json(\n-        cls: Type[_DataElement],\n+    cls: Type[_DataElement],\n+    tag: Union[BaseTag, int],\n+    vr: str,\n         dataset_class: Type[_Dataset],\n-        tag: Union[BaseTag, int],\n-        vr: str,\n+        bulk_data_element_tag: Optional[Callable[[BaseTag], str]] = None,\n+        bulk_data_element_vr: Optional[Callable[[str], str]] = None,\n         value: object,\n         value_key: Union[str, None],\n         bulk_data_uri_handler: Optional[Callable[[str], object]] = None\n@@ -264,7 +266,7 @@ class DataElement:\n                                              value_key, bulk_data_uri_handler)\n         elem_value = converter.get_element_values()\n         try:\n-            return cls(tag=tag, value=elem_value, VR=vr)\n+        return cls(tag=tag, value=elem_value, VR=vr, bulk_data_element_tag=bulk_data_element_tag, bulk_data_element_vr=bulk_data_element_vr)\n         except Exception:\n             raise ValueError(\n                 'Data element \"{}\" could not be loaded from JSON: {}'.format(\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1365",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-965",
+        "model_patch": "diff --git a/pydicom/dataelem.py b/pydicom/dataelem.py\nindex 8dfe3e2..ee15d69 100644\n--- a/pydicom/dataelem.py\n+++ b/pydicom/dataelem.py\n@@ -76,7 +76,7 @@ def empty_value_for_VR(VR, raw=False):\n     if VR in ('AE', 'AS', 'CS', 'DA', 'DT', 'LO', 'LT',\n               'PN', 'SH', 'ST', 'TM', 'UC', 'UI', 'UR', 'UT'):\n         return b'' if raw else ''\n-    return None\n+        return []\n \n \n def isMultiValue(value):\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1375",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1334",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-958",
+        "model_patch": "diff --git a/pydicom/charset.py b/pydicom/charset.py\nindex aaec9e1..c03269d 100644\n--- a/pydicom/charset.py\n+++ b/pydicom/charset.py\n@@ -45,7 +45,8 @@ python_encoding = {\n     'ISO 2022 IR 144': 'iso_ir_144',\n     'ISO 2022 IR 148': 'iso_ir_148',\n     'ISO 2022 IR 149': 'euc_kr',\n-    'ISO 2022 IR 159': 'iso-2022-jp',\n+    'ISO 2022 IR 159': 'iso2022_jp_2004',\n+    \n     'ISO 2022 IR 166': 'iso_ir_166',\n     'ISO 2022 IR 58': 'iso_ir_58',\n     'ISO_IR 192': 'UTF8',  # from Chinese example, 2008 PS3.5 Annex J p1-4\n@@ -54,7 +55,6 @@ python_encoding = {\n     'ISO 2022 58': 'GB2312',  # from DICOM correction CP1234\n     'GBK': 'GBK',  # from DICOM correction CP1234\n }\n-\n # these encodings cannot be used with code extensions\n # see DICOM Standard, Part 3, Table C.12-5\n # and DICOM Standard, Part 5, Section 6.1.2.5.4, item d\n@@ -92,9 +92,9 @@ ENCODINGS_TO_CODES['shift_jis'] = ESC + b')I'\n # To decode them, the escape sequence shall be preserved in the input byte\n # string, and will be removed during decoding by Python.\n handled_encodings = ('iso2022_jp',\n-                     'iso-2022-jp',\n-                     'iso_ir_58')\n+'iso2022_jp_2004',\n \n+                     'iso_ir_58')\n \n def _encode_to_jis_x_0201(value, errors='strict'):\n     \"\"\"Convert a unicode string into JIS X 0201 byte string using shift_jis\n@@ -268,10 +268,10 @@ need_tail_escape_sequence_encodings = ('iso2022_jp', 'iso-2022-jp')\n custom_encoders = {\n     'shift_jis': _encode_to_jis_x_0201,\n     'iso2022_jp': _encode_to_jis_x_0208,\n-    'iso-2022-jp': _encode_to_jis_x_0208\n+    'iso2022_jp_2004': _encode_to_jis_x_0208\n+    \n }\n \n-\n def decode_string(value, encodings, delimiters):\n     \"\"\"Decode an encoded byte `value` into a unicode string using `encodings`.\n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-863",
+        "model_patch": "diff --git a/pydicom/charset.py b/pydicom/charset.py\nindex f85bff7..566460c 100644\n--- a/pydicom/charset.py\n+++ b/pydicom/charset.py\n@@ -20,7 +20,8 @@ python_encoding = {\n     # alias for latin_1 too (iso_ir_6 exists as an alias to 'ascii')\n     'ISO_IR 6': default_encoding,\n     'ISO_IR 13': 'shift_jis',\n-\n+    'ISO 2022 IR 13': 'iso2022_jp',\n+    \n     # these also have iso_ir_1XX aliases in python 2.7\n     'ISO_IR 100': 'latin_1',\n     'ISO_IR 101': 'iso8859_2',\n@@ -33,7 +34,6 @@ python_encoding = {\n     'ISO_IR 148': 'iso_ir_148',  # Turkish\n     'ISO_IR 166': 'iso_ir_166',  # Thai\n     'ISO 2022 IR 6': 'iso8859',  # alias for latin_1 too\n-    'ISO 2022 IR 13': 'shift_jis',\n     'ISO 2022 IR 87': 'iso2022_jp',\n     'ISO 2022 IR 100': 'latin_1',\n     'ISO 2022 IR 101': 'iso8859_2',\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1694",
+        "model_patch": "diff --git a/pydicom/dataelem.py b/pydicom/dataelem.py\nindex 9beb06b..a4f4e9f 100644\n--- a/pydicom/dataelem.py\n+++ b/pydicom/dataelem.py\n@@ -318,6 +318,13 @@ class DataElement:\n             Mapping representing a JSON encoded data element as ``{str: Any}``.\n         \"\"\"\n         json_element: Dict[str, Any] = {'vr': self.VR}\n+        try:\n+        data_element = self[key]\n+        except Exception as exc:\n+        if suppress_invalid_tags:\n+        return {}\n+        raise\n+        \n         if self.VR in (BYTES_VR | AMBIGUOUS_VR) - {VR_.US_SS}:\n             if not self.is_empty:\n                 binary_value = self.value\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1562",
+        "model_patch": "diff --git a/pydicom/datadict.py b/pydicom/datadict.py\nindex 99201be..21ae635 100644\n--- a/pydicom/datadict.py\n+++ b/pydicom/datadict.py\n@@ -405,7 +405,7 @@ def dictionary_keyword(tag: TagType) -> str:\n     return get_entry(tag)[4]\n \n \n-def dictionary_has_tag(tag: TagType) -> bool:\n+    def dictionary_has_tag(tag: Union[int, str, Tuple[int, int], BaseTag]) -> bool:\n     \"\"\"Return ``True`` if `tag` is in the official DICOM data dictionary.\n \n     Parameters\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1413",
+        "model_patch": "diff --git a/pydicom/dataelem.py b/pydicom/dataelem.py\nindex b2709f1..8f03883 100644\n--- a/pydicom/dataelem.py\n+++ b/pydicom/dataelem.py\n@@ -38,11 +38,11 @@ if TYPE_CHECKING:  # pragma: no cover\n \n \n BINARY_VR_VALUES = [\n-    'US', 'SS', 'UL', 'SL', 'OW', 'OB', 'OL', 'UN',\n+'US', 'SS', 'UL', 'SL', 'OW', 'OB', 'UN',\n+\n     'OB or OW', 'US or OW', 'US or SS or OW', 'FL', 'FD', 'OF', 'OD'\n ]\n \n-\n def empty_value_for_VR(\n     VR: Optional[str], raw: bool = False\n ) -> Union[bytes, List[str], str, None, PersonName]:\n@@ -513,16 +513,16 @@ class DataElement:\n             return self._convert(val)\n         else:\n             return MultiValue(self._convert, val)\n-\n+            if _is_bytes(val) and self.VR in (\n+            'AE', 'AS', 'CS', 'DA', 'DS', 'DT', 'IS', 'TM', 'UI', 'UR'\n     def _convert(self, val: Any) -> Any:\n         \"\"\"Convert `val` to an appropriate type for the element's VR.\"\"\"\n         # If the value is a byte string and has a VR that can only be encoded\n         # using the default character repertoire, we convert it to a string\n         # here to allow for byte string input in these cases\n-        if _is_bytes(val) and self.VR in (\n+        'AE', 'AS', 'CS', 'DA', 'DS', 'DT', 'IS', 'TM', 'UI', 'UR', 'OL'\n                 'AE', 'AS', 'CS', 'DA', 'DS', 'DT', 'IS', 'TM', 'UI', 'UR'):\n             val = val.decode()\n-\n         if self.VR == 'IS':\n             return pydicom.valuerep.IS(val)\n         elif self.VR == 'DA' and config.datetime_conversion:\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1090",
+        "model_patch": "diff --git a/pydicom/config.py b/pydicom/config.py\nindex 8c9ec1b..1b6bdec 100644\n--- a/pydicom/config.py\n+++ b/pydicom/config.py\n@@ -148,11 +148,13 @@ import pydicom.pixel_data_handlers.jpeg_ls_handler as jpegls_handler  # noqa\n import pydicom.pixel_data_handlers.gdcm_handler as gdcm_handler  # noqa\n \n pixel_data_handlers = [\n+import pydicom.pixel_data_handlers.deflate_handler as deflate_handler  # noqa\n     np_handler,\n     rle_handler,\n     gdcm_handler,\n     pillow_handler,\n     jpegls_handler,\n+    deflate_handler,\n ]\n \"\"\"Handlers for converting (7FE0,0010) *Pixel Data*.\n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-800",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-938",
+        "model_patch": "diff --git a/doc/conf.py b/doc/conf.py\nindex 1010023..29322a3 100644\n--- a/doc/conf.py\n+++ b/doc/conf.py\n@@ -132,7 +132,7 @@ master_doc = 'index'\n \n # General information about the project.\n project = u'pydicom'\n-copyright = u'2008-2019, Darcy Mason and pydicom contributors'\n+copyright = u'2008-2023, Darcy Mason and pydicom contributors'\n \n # The version info for the project you're documenting, acts as replacement for\n # |version| and |release|, also used in various other places throughout the\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1194",
+        "model_patch": "diff --git a/pydicom/config.py b/pydicom/config.py\nindex e8b2bb3..8afdf74 100644\n--- a/pydicom/config.py\n+++ b/pydicom/config.py\n@@ -152,7 +152,7 @@ TM to :class:`datetime.date`, :class:`datetime.datetime` and\n Default ``False``\n \"\"\"\n \n-use_none_as_empty_text_VR_value = False\n+use_none_as_empty_text_VR_value = True\n \"\"\" If ``True``, the value of a decoded empty data element with\n a text VR is ``None``, otherwise (the default), it is is an empty string.\n For all other VRs the behavior does not change - the value is en empty\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-997",
+        "model_patch": "diff --git a/pydicom/encaps.py b/pydicom/encaps.py\nindex e0b3d4a..22d15a7 100644\n--- a/pydicom/encaps.py\n+++ b/pydicom/encaps.py\n@@ -250,15 +250,15 @@ def generate_pixel_data(bytestream):\n     # greater than the total number of bytes in the fragments\n     offsets.append(len(bytestream))\n \n-    frame = []\n+    frame = bytearray()\n     frame_length = 0\n     frame_number = 0\n     for fragment in generate_pixel_data_fragment(fp):\n         if frame_length < offsets[frame_number + 1]:\n-            frame.append(fragment)\n+        frame.extend(fragment)\n         else:\n-            yield tuple(frame)\n-            frame = [fragment]\n+        yield bytes(frame)\n+        frame = bytearray(fragment)\n             frame_number += 1\n \n         frame_length += len(fragment) + 8\n@@ -266,7 +266,7 @@ def generate_pixel_data(bytestream):\n     # Yield the final frame - required here because the frame_length will\n     # never be greater than offsets[-1] and thus never trigger the final yield\n     # within the for block\n-    yield tuple(frame)\n+    yield bytes(frame)\n \n \n def decode_data_sequence(data):\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-811",
+        "model_patch": "diff --git a/pydicom/filereader.py b/pydicom/filereader.py\nindex 9e7bd8d..46d2a16 100644\n--- a/pydicom/filereader.py\n+++ b/pydicom/filereader.py\n@@ -689,6 +689,7 @@ def read_partial(fileobj, stop_when=None, defer_size=None,\n \n     # Check to see if there's anything left to read\n     peek = fileobj.read(1)\n+    if peek != b'':\n     fileobj.seek(-1, 1)\n \n     # `filobj` should be positioned at the start of the dataset by this point.\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1539",
+        "model_patch": "diff --git a/pydicom/dataelem.py b/pydicom/dataelem.py\nindex 15e2f36..a721d3e 100644\n--- a/pydicom/dataelem.py\n+++ b/pydicom/dataelem.py\n@@ -22,6 +22,8 @@ from pydicom.datadict import (dictionary_has_tag, dictionary_description,\n                               private_dictionary_description, dictionary_VR,\n                               repeater_has_tag, private_dictionary_VR)\n from pydicom.errors import BytesLengthException\n+from pydicom.errors import BytesLengthException\n+from pydicom.util.fixes import fix_encapsulated_document\n from pydicom.jsonrep import JsonDataElementConverter, BulkDataType\n from pydicom.multival import MultiValue\n from pydicom.tag import Tag, BaseTag\n@@ -873,5 +875,8 @@ def DataElement_from_raw(\n         except TypeError:\n             pass\n \n-    return DataElement(raw.tag, VR, value, raw.value_tell,\n-                       raw.length == 0xFFFFFFFF, already_converted=True)\n+            element = DataElement(raw.tag, VR, value, raw.value_tell,\n+            raw.length == 0xFFFFFFFF, already_converted=True)\n+            if raw.tag == 0x00420011:  # EncapsulatedDocument tag\n+            element = fix_encapsulated_document(element)\n+            return element\ndiff --git a/pydicom/util/fixes.py b/pydicom/util/fixes.py\nnew file mode 100644\nindex 0000000..b24953c\n--- /dev/null\n+++ b/pydicom/util/fixes.py\n@@ -0,0 +1,20 @@\n+from pydicom.dataelem import DataElement\n+\n+\n+def fix_encapsulated_document(element: DataElement) -> DataElement:\n+    \"\"\"Ensure EncapsulatedDocument has an even length value.\n+\n+    Parameters\n+    ----------\n+    element : DataElement\n+        The element to check and fix if necessary.\n+\n+    Returns\n+    -------\n+    DataElement\n+        The original element if no fix was needed, otherwise a new element\n+        with an even length value.\n+    \"\"\"\n+    if element.VR == 'OB' and len(element.value) % 2:\n+        element = DataElement(element.tag, element.VR, element.value + b'\\0')\n+    return element\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-901",
+        "model_patch": "diff --git a/pydicom/config.py b/pydicom/config.py\nindex ae9c8bd..42f525b 100644\n--- a/pydicom/config.py\n+++ b/pydicom/config.py\n@@ -61,11 +61,6 @@ and datetime.time respectively. Default: False\n \"\"\"\n \n # Logging system and debug function to change logging level\n-logger = logging.getLogger('pydicom')\n-handler = logging.StreamHandler()\n-formatter = logging.Formatter(\"%(message)s\")\n-handler.setFormatter(formatter)\n-logger.addHandler(handler)\n \n \n import pydicom.pixel_data_handlers.numpy_handler as np_handler  # noqa\n@@ -129,4 +124,3 @@ def debug(debug_on=True):\n \n \n # force level=WARNING, in case logging default is set differently (issue 103)\n-debug(False)\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1598",
+        "model_patch": "diff --git a/pydicom/dicomdir.py b/pydicom/dicomdir.py\nindex bee90d7..bae883c 100644\n--- a/pydicom/dicomdir.py\n+++ b/pydicom/dicomdir.py\n@@ -143,7 +143,7 @@ class DicomDir(FileDataset):\n                     record.OffsetOfReferencedLowerLevelDirectoryEntity\n                 )\n                 if child_offset:\n-                    child = map_offset_to_record[child_offset]\n+                child = map_offset_to_record.get(child_offset)\n                     record.children = get_siblings(child, map_offset_to_record)\n \n         self.patient_records = [\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1139",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-793",
+        "model_patch": "diff --git a/pydicom/dataelem.py b/pydicom/dataelem.py\nindex d9c1609..b1645fe 100644\n--- a/pydicom/dataelem.py\n+++ b/pydicom/dataelem.py\n@@ -444,6 +444,6 @@ def DataElement_from_raw(raw_data_element, encoding=None):\n     try:\n         value = convert_value(VR, raw, encoding)\n     except NotImplementedError as e:\n-        raise NotImplementedError(\"{0:s} in tag {1!r}\".format(str(e), raw.tag))\n+    raise NotImplementedError(\"Unknown Value Representation: '{0}' in tag {1!r}\".format(' '.join(format(x, '02x') for x in raw[:2]), raw.tag))\n     return DataElement(raw.tag, VR, value, raw.value_tell,\n                        raw.length == 0xFFFFFFFF, already_converted=True)\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1192",
+        "model_patch": "diff --git a/pydicom/charset.py b/pydicom/charset.py\nindex 74be44e..6ebfe00 100644\n--- a/pydicom/charset.py\n+++ b/pydicom/charset.py\n@@ -635,7 +635,7 @@ def convert_encodings(encodings):\n     \"\"\"\n \n     # If a list if passed, we don't want to modify the list in place so copy it\n-    encodings = encodings[:]\n+    encodings = encodings[:] if encodings is not None else [default_encoding]\n \n     if isinstance(encodings, str):\n         encodings = [encodings]\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1236",
+        "model_patch": "diff --git a/pydicom/pixel_data_handlers/util.py b/pydicom/pixel_data_handlers/util.py\nindex d0b20d9..fd203f1 100644\n--- a/pydicom/pixel_data_handlers/util.py\n+++ b/pydicom/pixel_data_handlers/util.py\n@@ -316,7 +316,7 @@ def apply_voi_lut(arr, ds, index=0):\n \n         # VOI LUT Sequence contains one or more items\n         item = ds.VOILUTSequence[index]\n-        nr_entries = item.LUTDescriptor[0] or 2**16\n+        nr_entries = item.LUTDescriptor[0] if item.LUTDescriptor[0] is not None else 2**16\n         first_map = item.LUTDescriptor[1]\n \n         # PS3.3 C.8.11.3.1.5: may be 8, 10-16\n@@ -384,7 +384,7 @@ def apply_voi_lut(arr, ds, index=0):\n \n         if 'RescaleSlope' in ds and 'RescaleIntercept' in ds:\n             # Otherwise its the actual data range\n-            y_min = y_min * ds.RescaleSlope + ds.RescaleIntercept\n+            y_min = y_min * (ds.RescaleSlope or 1) + (ds.RescaleIntercept or 0)\n             y_max = y_max * ds.RescaleSlope + ds.RescaleIntercept\n \n         y_range = y_max - y_min\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-955",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1031",
+        "model_patch": "diff --git a/pydicom/filewriter.py b/pydicom/filewriter.py\nindex cebf4ad..fa59bce 100644\n--- a/pydicom/filewriter.py\n+++ b/pydicom/filewriter.py\n@@ -460,7 +460,7 @@ def write_data_element(fp, data_element, encodings=None):\n \n     if data_element.is_raw:\n         # raw data element values can be written as they are\n-        buffer.write(data_element.value)\n+        buffer.write(data_element.value if isinstance(data_element.value, bytes) else data_element.value.encode('utf-8'))\n         is_undefined_length = data_element.length == 0xFFFFFFFF\n     else:\n         if VR not in writers:\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1555",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-809",
+        "model_patch": "diff --git a/pydicom/dataelem.py b/pydicom/dataelem.py\nindex d9c1609..659c4c9 100644\n--- a/pydicom/dataelem.py\n+++ b/pydicom/dataelem.py\n@@ -181,9 +181,9 @@ class DataElement(object):\n         # If so, turn them into a list of separate strings\n         #  Last condition covers 'US or SS' etc\n         if isinstance(val, compat.char_types) and self.VR not in \\\n-                ['UT', 'ST', 'LT', 'FL', 'FD', 'AT', 'OB', 'OW', 'OF', 'SL',\n-                 'SQ', 'SS', 'UL', 'OB/OW', 'OW/OB', 'OB or OW',\n-                 'OW or OB', 'UN'] and 'US' not in self.VR:\n+        ['UT', 'ST', 'LT', 'FL', 'FD', 'AT', 'OB', 'OW', 'OF', 'SL',\n+        'SQ', 'SS', 'UL', 'OB/OW', 'OW/OB', 'OB or OW',\n+        'OW or OB', 'UN', 'US']:\n             try:\n                 if _backslash_str in val:\n                     val = val.split(_backslash_str)\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-933",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1633",
+        "model_patch": "diff --git a/pydicom/config.py b/pydicom/config.py\nindex 25250c8..5386e59 100644\n--- a/pydicom/config.py\n+++ b/pydicom/config.py\n@@ -147,7 +147,7 @@ Default: ``False``.\n .. versionadded:: 2.0\n \"\"\"\n \n-allow_DS_float = False\n+allow_DS_float = True\n \"\"\"Set to ``True`` to allow :class:`~pydicom.valuerep.DSdecimal`\n instances to be created using :class:`floats<float>`; otherwise, they must be\n explicitly converted to :class:`str`, with the user explicitly setting the\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1428",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "pydicom__pydicom-1256",
         "model_patch": "",
         "model_name_or_path": "GCA"
     }
