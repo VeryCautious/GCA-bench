@@ -1,0 +1,152 @@
+[
+    {
+        "instance_id": "sqlfluff__sqlfluff-4764",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-2862",
+        "model_patch": "diff --git a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\nindex 61d80cb..4924854 100644\n--- a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n+++ b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n@@ -498,8 +498,8 @@ class DbtTemplater(JinjaTemplater):\n             #    2. Append the count from #1 above to the node.raw_sql and\n             #       compiled_sql objects, both of which have had the trailing\n             #       newlines removed by the dbt-templater.\n-            node.raw_sql = node.raw_sql + \"\\n\" * n_trailing_newlines\n-            compiled_sql = compiled_sql + \"\\n\" * n_trailing_newlines\n+            node.raw_sql = node.raw_sql + \"\\n\" * (n_trailing_newlines if n_trailing_newlines > 0 else 1)\n+            compiled_sql = compiled_sql + \"\\n\" * (n_trailing_newlines if n_trailing_newlines > 0 else 1)\n \n             raw_sliced, sliced_file, templated_sql = self.slice_file(\n                 source_dbt_sql,\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-2336",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-5074",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-3436",
+        "model_patch": "diff --git a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\nindex ffb5ef4..114c5b4 100644\n--- a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n+++ b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n@@ -308,7 +308,7 @@ class DbtTemplater(JinjaTemplater):\n             if fname not in already_yielded:\n                 yield fname\n \n-    def process(self, *, fname, in_str=None, config=None, formatter=None):\n+                def process(self, *, fname, in_str=None, config=None, formatter=None, tracer=None):\n         \"\"\"Compile a dbt model and return the compiled SQL.\n \n         Args:\n@@ -327,7 +327,7 @@ class DbtTemplater(JinjaTemplater):\n \n         try:\n             os.chdir(self.project_dir)\n-            processed_result = self._unsafe_process(fname_absolute_path, in_str, config)\n+            processed_result = self._unsafe_process(fname_absolute_path, in_str, config, tracer=tracer)\n             # Reset the fail counter\n             self._sequential_fails = 0\n             return processed_result\n@@ -413,7 +413,7 @@ class DbtTemplater(JinjaTemplater):\n                 return \"disabled\"\n         return None\n \n-    def _unsafe_process(self, fname, in_str=None, config=None):\n+        def _unsafe_process(self, fname, in_str=None, config=None, tracer=None):\n         original_file_path = os.path.relpath(fname, start=os.getcwd())\n \n         # Below, we monkeypatch Environment.from_string() to intercept when dbt\n@@ -540,6 +540,7 @@ class DbtTemplater(JinjaTemplater):\n                 config=config,\n                 make_template=make_template,\n                 append_to_templated=\"\\n\" if n_trailing_newlines else \"\",\n+                tracer=tracer\n             )\n         # :HACK: If calling compile_node() compiled any ephemeral nodes,\n         # restore them to their earlier state. This prevents a runtime error\n@@ -560,6 +561,8 @@ class DbtTemplater(JinjaTemplater):\n             ),\n             # No violations returned in this way.\n             [],\n+            tracer=tracer\n+            tracer=tracer\n         )\n \n     @contextmanager\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-2849",
+        "model_patch": "diff --git a/src/sqlfluff/core/templaters/base.py b/src/sqlfluff/core/templaters/base.py\nindex 5ed8b65..92b7d41 100644\n--- a/src/sqlfluff/core/templaters/base.py\n+++ b/src/sqlfluff/core/templaters/base.py\n@@ -174,7 +174,7 @@ class TemplatedFile:\n         else:\n             last_idx += 1\n         if first_idx is None:  # pragma: no cover\n-            raise ValueError(\"Position Not Found\")\n+        raise ValueError(\"Position Not Found: \" + str(templated_pos))\n         return first_idx, last_idx\n \n     def raw_slices_spanning_source_slice(\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-884",
+        "model_patch": "diff --git a/test/core/rules/base_test.py b/test/core/rules/base_test.py\nindex 8314604..78c1809 100644\n--- a/test/core/rules/base_test.py\n+++ b/test/core/rules/base_test.py\n@@ -4,4 +4,4 @@ import sqlfluff.core.rules.base as rules_base\n \n def test_whitespace_segment_is_whitespace():\n     \"\"\"Tests that WhitespaceSegment.is_whitespace is True.\"\"\"\n-    assert rules_base.BaseRule.make_whitespace(\"\", \"\").is_whitespace\n+    assert rules_base.BaseRule.make_whitespace(\"\", \"\", is_whitespace=True).is_whitespace\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-4151",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-3354",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-3700",
+        "model_patch": "diff --git a/util.py b/util.py\nindex 1e1596d..919eec9 100644\n--- a/util.py\n+++ b/util.py\n@@ -110,7 +110,7 @@ def benchmark(cmd, runs, from_file):\n                 \"/{repo}/{commit}\".format(\n                     # TODO: update the stats collector eventually to allow the new repo\n                     # path\n-                    repo=\"alanmcruickshank/sqlfluff\",\n+                    repo=os.environ[\"GITHUB_REPOSITORY\"],\n                     commit=commit_hash,\n                 ),\n                 params={\"key\": api_key},\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-3608",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-3435",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-3904",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-4753",
+        "model_patch": "diff --git a/plugins/sqlfluff-templater-dbt/test/rules_test.py b/plugins/sqlfluff-templater-dbt/test/rules_test.py\nindex c81f9fe..90f474b 100644\n--- a/plugins/sqlfluff-templater-dbt/test/rules_test.py\n+++ b/plugins/sqlfluff-templater-dbt/test/rules_test.py\n@@ -20,8 +20,8 @@ from test.fixtures.dbt.templater import (  # noqa\n     [\n         # Group By\n         (\"AM01\", \"models/my_new_project/select_distinct_group_by.sql\", [(1, 8)]),\n-        # Multiple trailing newline\n-        (\"LT12\", \"models/my_new_project/multiple_trailing_newline.sql\", [(3, 1)]),\n+        # End of file newline\n+        (\"layout_end_of_file\", \"models/my_new_project/multiple_trailing_newline.sql\", [(3, 1)]),\n     ],\n )\n def test__rules__std_file_dbt(rule, path, violations, project_dir):  # noqa\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-4778",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-2907",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-4051",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-905",
+        "model_patch": "diff --git a/src/sqlfluff/core/config.py b/src/sqlfluff/core/config.py\nindex e343795..51e140a 100644\n--- a/src/sqlfluff/core/config.py\n+++ b/src/sqlfluff/core/config.py\n@@ -368,7 +368,7 @@ class FluffConfig:\n         else:\n             self._configs[\"core\"][\"rule_blacklist\"] = None\n         # Configure Recursion\n-        if self._configs[\"core\"].get(\"recurse\", 0) == 0:\n+        if self._configs[\"core\"].get(\"recurse\", 1) == 0:\n             self._configs[\"core\"][\"recurse\"] = True\n \n         # Dialect and Template selection.\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-1625",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-2326",
+        "model_patch": "diff --git a/src/sqlfluff/core/parser/grammar/any_set_of.py b/src/sqlfluff/core/parser/grammar/any_set_of.py\nnew file mode 100644\nindex 0000000..dd06bd3\n--- /dev/null\n+++ b/src/sqlfluff/core/parser/grammar/any_set_of.py\n@@ -0,0 +1,47 @@\n+from sqlfluff.core.parser.grammar.any_number_of import AnyNumberOf\n+from sqlfluff.core.parser.match_result import MatchResult\n+from sqlfluff.core.parser.match_logging import parse_match_logging\n+from sqlfluff.core.parser.matchable import Matchable\n+from typing import Optional, List, Sequence\n+\n+class AnySetOf(AnyNumberOf):\n+    def match(\n+        self,\n+        segments: Sequence[Matchable],\n+        parse_context: 'ParseContext'\n+    ) -> 'MatchResult':\n+        \n+        # Use the parse_match_logging decorator to log the match process.\n+        @parse_match_logging(self.__class__.__name__)\n+        def inner_match(segments: Sequence[Matchable], parse_context: 'ParseContext') -> 'MatchResult':\n+            # We'll use a set to keep track of which options have been matched.\n+            matched_options = set()\n+            # The buffer is a list of segments we haven't matched yet.\n+            buffer = segments\n+            # The matched_segments is what we'll return, which collects up the matched segments.\n+            matched_segments = []\n+            # While there's still a buffer to work through...\n+            while buffer:\n+                # Cycle through each of the options.\n+                for opt in self._elements:\n+                    if opt not in matched_options:\n+                        # If we haven't already matched on this option, try it now.\n+                        with parse_context.deeper_match() as ctx:  # type: ignore\n+                            m = opt.match(buffer, parse_context=ctx)\n+                        # If it's a match...\n+                        if m.has_match():\n+                            # Add the option to the set of matched options.\n+                            matched_options.add(opt)\n+                            # Add the matched segments to our return buffer and update the buffer.\n+                            matched_segments += m.matched_segments\n+                            buffer = m.unmatched_segments\n+                            # Break the cycle through the options, to go back to the top of the while loop.\n+                            break\n+                else:\n+                    # If we get here, we've been through all the options and none have matched.\n+                    # That means we're done.\n+                    break\n+            # Return the match result.\n+            return MatchResult(matched_segments, buffer)\n+\n+        return inner_match(segments, parse_context)\n\\ No newline at end of file\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-3220",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-2419",
+        "model_patch": "diff --git a/src/sqlfluff/rules/L060.py b/src/sqlfluff/rules/L060.py\nindex 836941e..0aeac25 100644\n--- a/src/sqlfluff/rules/L060.py\n+++ b/src/sqlfluff/rules/L060.py\n@@ -59,4 +59,4 @@ class Rule_L060(BaseRule):\n             ],\n         )\n \n-        return LintResult(context.segment, [fix])\n+        return LintResult(context.segment, [fix], description=f\"Use 'COALESCE' instead of '{context.segment.raw_upper}'.\")\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-3170",
+        "model_patch": "diff --git a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\nindex ffb5ef4..12cf883 100644\n--- a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n+++ b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n@@ -414,7 +414,7 @@ class DbtTemplater(JinjaTemplater):\n         return None\n \n     def _unsafe_process(self, fname, in_str=None, config=None):\n-        original_file_path = os.path.relpath(fname, start=os.getcwd())\n+    original_file_path = os.path.relpath(fname, start=self.project_dir)\n \n         # Below, we monkeypatch Environment.from_string() to intercept when dbt\n         # compiles (i.e. runs Jinja) to expand the \"node\" corresponding to fname.\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-2846",
+        "model_patch": "diff --git a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\nindex b4cdfaf..0d3620c 100644\n--- a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n+++ b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n@@ -438,7 +438,7 @@ class DbtTemplater(JinjaTemplater):\n \n         finally:\n             # Undo the monkeypatch.\n-            Environment.from_string = from_string\n+            Environment.from_string = old_from_string\n \n         node = self._find_node(fname, config)\n \n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-3662",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-4997",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-2998",
+        "model_patch": "diff --git a/test/rules/std_L027_test.py b/test/rules/std_L027_test.py\nindex 3190150..60fbf02 100644\n--- a/test/rules/std_L027_test.py\n+++ b/test/rules/std_L027_test.py\n@@ -3,13 +3,16 @@\n import sqlfluff\n \n \n-def test__rules__std_L027_wildcard_single_count():\n-    \"\"\"Verify that L027 is only raised once for wildcard (see issue #1973).\"\"\"\n-    sql = \"\"\"\n-        SELECT *\n-        FROM foo\n-        INNER JOIN bar;\n-    \"\"\"\n+def test__rules__std_L027_struct_access_trigger():\n+\"\"\"Test that L027 is triggered when accessing STRUCT elements in BigQuery.\"\"\"\n+sql = \"\"\"\n+SELECT\n+t1.col1,\n+t2.col2,\n+events.id\n+FROM t_table1 AS t1\n+LEFT JOIN t_table2 AS t2\n+ON TRUE\n+\"\"\"\n     result = sqlfluff.lint(sql)\n     assert \"L027\" in [r[\"code\"] for r in result]\n-    assert [r[\"code\"] for r in result].count(\"L027\") == 1\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-1733",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-3648",
+        "model_patch": "diff --git a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\nindex c4f68e5..5de46ec 100644\n--- a/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n+++ b/plugins/sqlfluff-templater-dbt/sqlfluff_templater_dbt/templater.py\n@@ -444,7 +444,8 @@ class DbtTemplater(JinjaTemplater):\n                         globals = args[2] if len(args) >= 3 else kwargs[\"globals\"]\n \n                         def make_template(in_str):\n-                            env.add_extension(SnapshotExtension)\n+                        env.add_extension(SnapshotExtension)\n+                        env.globals['load_result'] = lambda x: ''\n                             return env.from_string(in_str, globals=globals)\n \n             return old_from_string(*args, **kwargs)\n",
+        "model_name_or_path": "GCA"
+    },
+    {
+        "instance_id": "sqlfluff__sqlfluff-4043",
+        "model_patch": "",
+        "model_name_or_path": "GCA"
+    }
+]
